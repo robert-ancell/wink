@@ -11,4 +11,8 @@ SocketServer *socket_server_new(MainLoop *loop,
                                 SocketServerConnectCallback connect_callback,
                                 void *user_data);
 
-bool socket_server_run(SocketServer *self);
+SocketServer *socket_server_ref(SocketServer *self);
+
+void socket_server_unref(SocketServer *self);
+
+bool socket_server_run(SocketServer *self, const char *path);

@@ -22,9 +22,14 @@ MainLoop *main_loop_new() {
   return self;
 }
 
-MainLoop *main_loop_ref(MainLoop *self) { return self; }
+MainLoop *main_loop_ref(MainLoop *self) {
+  // FIXME
+  return self;
+}
 
-void main_loop_unref(MainLoop *self) {}
+void main_loop_unref(MainLoop *self) {
+  // FIXME
+}
 
 void main_loop_add_fd(MainLoop *self, int fd,
                       MainLoopReadCallback read_callback, void *user_data) {

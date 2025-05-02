@@ -37,16 +37,29 @@ SocketServer *socket_server_new(MainLoop *loop,
   return self;
 }
 
-bool socket_server_run(SocketServer *self) {
+SocketServer *socket_server_ref(SocketServer *self) {
+  // FIXME
+  return self;
+}
+
+void socket_server_unref(SocketServer *self) {
+  // FIXME
+}
+
+bool socket_server_run(SocketServer *self, const char *path) {
   self->fd = socket(AF_UNIX, SOCK_STREAM, 0);
   if (self->fd == -1) {
     return false;
   }
 
   struct sockaddr_un address;
+  memset(&address, 0, sizeof(address));
   address.sun_family = AF_UNIX;
-  snprintf(address.sun_path, sizeof(address.sun_path), "%s", "foo");
-  if (bind(self->fd, (struct sockaddr *)&address, sizeof(address)) == -1) {
+  int path_len =
+      snprintf(address.sun_path + 1, sizeof(address.sun_path) - 1, "%s", path);
+  socklen_t address_length =
+      offsetof(struct sockaddr_un, sun_path) + 1 + path_len;
+  if (bind(self->fd, (struct sockaddr *)&address, address_length) == -1) {
     return false;
   }
 

@@ -9,7 +9,7 @@ int main(int argc, char **argv) {
   MainLoop *loop = main_loop_new();
 
   SocketServer *server = socket_server_new(loop, connect_cb, NULL);
-  socket_server_run(server);
+  socket_server_run(server, "wink");
 
   main_loop_run(loop);
 }
