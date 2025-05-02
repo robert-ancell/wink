@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <sys/socket.h>
 #include <sys/un.h>
+#include <unistd.h>
 
 struct _SocketServer {
   MainLoop *loop;
@@ -64,6 +65,7 @@ bool socket_server_run(SocketServer *self, const char *path) {
   //   return false;
   // }
   snprintf(address.sun_path, sizeof(address.sun_path), "%s", path);
+  unlink(path);
   if (bind(self->fd, (struct sockaddr *)&address, sizeof(address)) == -1) {
     return false;
   }

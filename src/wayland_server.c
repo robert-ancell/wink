@@ -4,18 +4,22 @@
 #include "wayland_server.h"
 
 #include "socket_server.h"
+#include "wayland_server_client.h"
 
 struct _WaylandServer {
+  MainLoop *loop;
   SocketServer *socket;
 };
 
 static void connect_cb(int fd, void *user_data) {
   WaylandServer *self = user_data;
-  printf("%d\n", fd);
+
+  WaylandServerClient *client = wayland_server_client_new(self->loop, fd);
 }
 
 WaylandServer *wayland_server_new(MainLoop *loop) {
   WaylandServer *self = malloc(sizeof(WaylandServer));
+  self->loop = main_loop_ref(loop);
   self->socket = socket_server_new(loop, connect_cb, self);
   return self;
 }
