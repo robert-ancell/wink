@@ -1,15 +1,13 @@
-#include <stdio.h>
+#include <stdlib.h>
 
 #include "main_loop.h"
-#include "socket_server.h"
-
-static void connect_cb(int fd, void *user_data) { printf("%d\n", fd); }
+#include "wayland_server.h"
 
 int main(int argc, char **argv) {
   MainLoop *loop = main_loop_new();
 
-  SocketServer *server = socket_server_new(loop, connect_cb, NULL);
-  socket_server_run(server, "wink");
+  WaylandServer *server = wayland_server_new(loop);
+  wayland_server_run(server, "wayland-99");
 
   main_loop_run(loop);
 }
