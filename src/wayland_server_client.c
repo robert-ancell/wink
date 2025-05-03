@@ -1,5 +1,6 @@
 #include <stdint.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 
 #include "wayland_server_client.h"
@@ -18,8 +19,59 @@ struct _WaylandServerClient {
   size_t objects_length;
 };
 
+static size_t set_uint(uint8_t *payload, size_t offset, uint32_t value) {
+  *(uint32_t *)(payload + offset) = value;
+  return offset + 4;
+}
+
+static size_t string_length(const char *value) {
+  size_t n_words = (strlen(value) + 1 + 3) / 4;
+  return 4 + n_words * 4;
+}
+
+static size_t set_string(uint8_t *payload, size_t offset, const char *value) {
+  offset = set_uint(payload, offset, strlen(value) + 1);
+  for (size_t i = 0; value[i] != '\0'; i++) {
+    payload[offset++] = value[i];
+  }
+  payload[offset++] = '\0';
+  while (offset % 4 != 0) {
+    payload[offset++] = '\0';
+  }
+
+  return offset;
+}
+
+static void wl_callback_request_cb(uint16_t code, const uint8_t *payload,
+                                   uint16_t payload_length, void *user_data) {}
+
+static void wl_callback_done(WaylandServerClient *self, uint32_t id,
+                             uint32_t callback_data) {
+  uint8_t payload[4];
+  set_uint(payload, 0, callback_data);
+  wayland_server_client_send_event(self, id, 0, payload, sizeof(payload));
+}
+
 static void wl_registry_request_cb(uint16_t code, const uint8_t *payload,
                                    uint16_t payload_length, void *user_data) {}
+
+static void wl_registry_global(WaylandServerClient *self, uint32_t id,
+                               uint32_t name, const char *interface,
+                               uint32_t version) {
+  uint8_t payload[4 + string_length(interface) + 4];
+  size_t offset = 0;
+  offset = set_uint(payload, offset, name);
+  offset = set_string(payload, offset, interface);
+  offset = set_uint(payload, offset, version);
+  wayland_server_client_send_event(self, id, 0, payload, sizeof(payload));
+}
+
+static void wl_registry_global_remove(WaylandServerClient *self, uint32_t id,
+                                      uint32_t name) {
+  uint8_t payload[4];
+  set_uint(payload, 0, name);
+  wayland_server_client_send_event(self, id, 1, payload, sizeof(payload));
+}
 
 static void wl_display_sync(WaylandServerClient *self, const uint8_t *payload,
                             uint16_t payload_length) {
@@ -29,7 +81,10 @@ static void wl_display_sync(WaylandServerClient *self, const uint8_t *payload,
 
   uint32_t callback = ((uint32_t *)payload)[0];
 
-  // FIXME
+  wayland_server_client_add_object(self, callback, wl_callback_request_cb,
+                                   self);
+
+  wl_callback_done(self, callback, 0);
 }
 
 static void wl_display_get_registry(WaylandServerClient *self,
@@ -42,6 +97,10 @@ static void wl_display_get_registry(WaylandServerClient *self,
   uint32_t id = ((uint32_t *)payload)[0];
 
   wayland_server_client_add_object(self, id, wl_registry_request_cb, self);
+  wl_registry_global(self, id, 1, "wl_compositor", 6);
+  wl_registry_global(self, id, 2, "wl_shm", 2);
+  wl_registry_global(self, id, 3, "wl_data_device_manager", 3);
+  wl_registry_global(self, id, 4, "xdg_wm_base", 6);
 }
 
 static void wl_display_request_cb(uint16_t code, const uint8_t *payload,
@@ -159,9 +218,10 @@ void wayland_server_client_add_object(
 void wayland_server_client_send_event(WaylandServerClient *self, uint32_t id,
                                       uint16_t code, const uint8_t *payload,
                                       uint16_t payload_length) {
+  // FIXME: Check may payload length (65535-8)
   uint32_t header[2];
   header[0] = id;
-  header[1] = payload_length << 16 | code;
+  header[1] = (payload_length + 8) << 16 | code;
   // FIXME: Handle partial writes
   write(self->fd, header, 8);
   write(self->fd, payload, payload_length);
