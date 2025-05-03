@@ -1,4 +1,5 @@
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -18,6 +19,20 @@ struct _WaylandServerClient {
   WaylandObject *objects;
   size_t objects_length;
 };
+
+static size_t get_uint(const uint8_t *payload, size_t offset, uint32_t *value) {
+  *value = *(uint32_t *)(payload + offset);
+  return offset + 4;
+}
+
+static size_t get_string(const uint8_t *payload, size_t offset,
+                         const char **value) {
+  uint32_t length;
+  offset = get_uint(payload, offset, &length);
+  *value = (const char *)(payload + offset);
+  size_t n_words = (length + 3) / 4;
+  return offset + n_words * 4;
+}
 
 static size_t set_uint(uint8_t *payload, size_t offset, uint32_t value) {
   *(uint32_t *)(payload + offset) = value;
@@ -42,6 +57,115 @@ static size_t set_string(uint8_t *payload, size_t offset, const char *value) {
   return offset;
 }
 
+static void wl_compositor_create_surface(WaylandServerClient *self,
+                                         const uint8_t *payload,
+                                         uint16_t payload_length) {
+  uint32_t id;
+  size_t offset = 0;
+  offset = get_uint(payload, offset, &id);
+
+  printf("wl_compositor::create_surface %d\n", id);
+}
+
+static void wl_compositor_create_region(WaylandServerClient *self,
+                                        const uint8_t *payload,
+                                        uint16_t payload_length) {
+  // FIXME
+  printf("wl_compositor::create_region\n");
+}
+
+static void wl_compositor_request_cb(uint16_t code, const uint8_t *payload,
+                                     uint16_t payload_length, void *user_data) {
+  WaylandServerClient *self = user_data;
+
+  switch (code) {
+  case 0:
+    wl_compositor_create_surface(self, payload, payload_length);
+    break;
+  case 1:
+    wl_compositor_create_region(self, payload, payload_length);
+    break;
+  }
+}
+
+static void wl_shm_create_pool(WaylandServerClient *self,
+                               const uint8_t *payload,
+                               uint16_t payload_length) {
+  // FIXME
+  printf("wl_shm::create_pool\n");
+}
+
+static void wl_shm_release(WaylandServerClient *self, const uint8_t *payload,
+                           uint16_t payload_length) {
+  printf("wl_shm::release\n");
+}
+
+static void wl_shm_request_cb(uint16_t code, const uint8_t *payload,
+                              uint16_t payload_length, void *user_data) {
+  WaylandServerClient *self = user_data;
+
+  switch (code) {
+  case 0:
+    wl_shm_create_pool(self, payload, payload_length);
+    break;
+  case 1:
+    wl_shm_release(self, payload, payload_length);
+    break;
+  }
+}
+
+static void wl_data_device_manager_request_cb(uint16_t code,
+                                              const uint8_t *payload,
+                                              uint16_t payload_length,
+                                              void *user_data) {}
+
+static void xdg_wm_base_destroy(WaylandServerClient *self,
+                                const uint8_t *payload,
+                                uint16_t payload_length) {
+  printf("xdg_wm_base::destroy\n");
+}
+
+static void xdg_wm_base_create_positioner(WaylandServerClient *self,
+                                          const uint8_t *payload,
+                                          uint16_t payload_length) {
+  printf("xdg_wm_base::create_positioner\n");
+}
+
+static void xdg_wm_base_get_xdg_surface(WaylandServerClient *self,
+                                        const uint8_t *payload,
+                                        uint16_t payload_length) {
+  uint32_t id, surface;
+  size_t offset = 0;
+  offset = get_uint(payload, offset, &id);
+  offset = get_uint(payload, offset, &surface);
+  printf("xdg_wm_base::get_xdg_surface %d %d\n", id, surface);
+}
+
+static void xdg_wm_base_pong(WaylandServerClient *self, const uint8_t *payload,
+                             uint16_t payload_length) {
+  printf("xdg_wm_base::pong\n");
+}
+
+static void xdg_wm_base_request_cb(uint16_t code, const uint8_t *payload,
+                                   uint16_t payload_length, void *user_data) {
+  WaylandServerClient *self = user_data;
+
+  switch (code) {
+  case 0:
+    xdg_wm_base_destroy(self, payload, payload_length);
+    break;
+  case 1:
+    xdg_wm_base_create_positioner(self, payload, payload_length);
+    break;
+  case 2:
+    xdg_wm_base_get_xdg_surface(self, payload, payload_length);
+    break;
+  case 3:
+    xdg_wm_base_pong(self, payload, payload_length);
+    break;
+  }
+}
+
 static void wl_callback_request_cb(uint16_t code, const uint8_t *payload,
                                    uint16_t payload_length, void *user_data) {}
 
@@ -52,8 +176,50 @@ static void wl_callback_done(WaylandServerClient *self, uint32_t id,
   wayland_server_client_send_event(self, id, 0, payload, sizeof(payload));
 }
 
+static void wl_registry_bind(WaylandServerClient *self, const uint8_t *payload,
+                             uint16_t payload_length) {
+  // if (payload_length != 8)
+  //  {
+  // return;
+  // }
+
+  uint32_t name, version, id;
+  const char *interface;
+  size_t offset = 0;
+  offset = get_uint(payload, offset, &name);
+  offset = get_string(payload, offset, &interface);
+  offset = get_uint(payload, offset, &version);
+  offset = get_uint(payload, offset, &id);
+
+  printf("wl_registry::bind %d %s %d %d\n", name, interface, version, id);
+
+  switch (name) {
+  case 1:
+    wayland_server_client_add_object(self, id, wl_compositor_request_cb, self);
+    break;
+  case 2:
+    wayland_server_client_add_object(self, id, wl_shm_request_cb, self);
+    break;
+  case 3:
+    wayland_server_client_add_object(self, id,
+                                     wl_data_device_manager_request_cb, self);
+    break;
+  case 4:
+    wayland_server_client_add_object(self, id, xdg_wm_base_request_cb, self);
+    break;
+  }
+}
+
 static void wl_registry_request_cb(uint16_t code, const uint8_t *payload,
-                                   uint16_t payload_length, void *user_data) {}
+                                   uint16_t payload_length, void *user_data) {
+  WaylandServerClient *self = user_data;
+
+  switch (code) {
+  case 0:
+    wl_registry_bind(self, payload, payload_length);
+    break;
+  }
+}
 
 static void wl_registry_global(WaylandServerClient *self, uint32_t id,
                                uint32_t name, const char *interface,
@@ -79,7 +245,10 @@ static void wl_display_sync(WaylandServerClient *self, const uint8_t *payload,
     return;
   }
 
-  uint32_t callback = ((uint32_t *)payload)[0];
+  uint32_t callback;
+  get_uint(payload, 0, &callback);
+
+  printf("wl_display::sync %d\n", callback);
 
   wayland_server_client_add_object(self, callback, wl_callback_request_cb,
                                    self);
@@ -94,7 +263,10 @@ static void wl_display_get_registry(WaylandServerClient *self,
     return;
   }
 
-  uint32_t id = ((uint32_t *)payload)[0];
+  uint32_t id;
+  get_uint(payload, 0, &id);
+
+  printf("wl_display::get_registry %d\n", id);
 
   wayland_server_client_add_object(self, id, wl_registry_request_cb, self);
   wl_registry_global(self, id, 1, "wl_compositor", 6);
@@ -110,10 +282,10 @@ static void wl_display_request_cb(uint16_t code, const uint8_t *payload,
   switch (code) {
   case 0:
     wl_display_sync(self, payload, payload_length);
-    return;
+    break;
   case 1:
     wl_display_get_registry(self, payload, payload_length);
-    return;
+    break;
   default:
     break;
   }
@@ -134,6 +306,7 @@ static WaylandObject *find_object(WaylandServerClient *self, uint32_t id) {
 static void decode_request(WaylandServerClient *self, uint32_t id,
                            uint16_t code, const uint8_t *payload,
                            uint16_t payload_length) {
+  printf("%d %d (%d)\n", id, code, payload_length);
   WaylandObject *o = find_object(self, id);
   if (o == NULL) {
     // FIXME: Generate error
