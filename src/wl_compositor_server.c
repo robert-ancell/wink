@@ -3,6 +3,8 @@
 #include "wl_compositor_server.h"
 
 struct _WlCompositorServer {
+  WaylandServerClient *client;
+  uint32_t id;
   const WlCompositorServerRequestCallbacks *request_callbacks;
   void *user_data;
 };
@@ -10,12 +12,20 @@ struct _WlCompositorServer {
 static void wl_compositor_create_surface(WlCompositorServer *self,
                                          WaylandPayloadDecoder *decoder) {
   uint32_t id = wayland_payload_decoder_read_new_id(decoder);
+  if (!wayland_payload_decoder_finish(decoder)) {
+    // FIXME
+    return;
+  }
   self->request_callbacks->create_surface(id, self->user_data);
 }
 
 static void wl_compositor_create_region(WlCompositorServer *self,
                                         WaylandPayloadDecoder *decoder) {
   uint32_t id = wayland_payload_decoder_read_new_id(decoder);
+  if (!wayland_payload_decoder_finish(decoder)) {
+    // FIXME
+    return;
+  }
   self->request_callbacks->create_region(id, self->user_data);
 }
 
@@ -39,6 +49,8 @@ WlCompositorServer *wl_compositor_server_new(
     const WlCompositorServerRequestCallbacks *request_callbacks,
     void *user_data) {
   WlCompositorServer *self = malloc(sizeof(WlCompositorServer));
+  self->client = client;
+  self->id = id;
   self->request_callbacks = request_callbacks;
   self->user_data = user_data;
 

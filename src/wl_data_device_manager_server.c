@@ -3,6 +3,8 @@
 #include "wl_data_device_manager_server.h"
 
 struct _WlDataDeviceManagerServer {
+  WaylandServerClient *client;
+  uint32_t id;
   const WlDataDeviceManagerServerRequestCallbacks *request_callbacks;
   void *user_data;
 };
@@ -11,6 +13,10 @@ static void
 wl_data_device_manager_create_data_source(WlDataDeviceManagerServer *self,
                                           WaylandPayloadDecoder *decoder) {
   uint32_t id = wayland_payload_decoder_read_new_id(decoder);
+  if (!wayland_payload_decoder_finish(decoder)) {
+    // FIXME
+    return;
+  }
   self->request_callbacks->create_data_source(id, self->user_data);
 }
 
@@ -19,6 +25,10 @@ wl_data_device_manager_get_data_device(WlDataDeviceManagerServer *self,
                                        WaylandPayloadDecoder *decoder) {
   uint32_t id = wayland_payload_decoder_read_new_id(decoder);
   uint32_t seat = wayland_payload_decoder_read_object(decoder);
+  if (!wayland_payload_decoder_finish(decoder)) {
+    // FIXME
+    return;
+  }
   self->request_callbacks->get_data_device(id, seat, self->user_data);
 }
 
@@ -42,6 +52,8 @@ WlDataDeviceManagerServer *wl_data_device_manager_server_new(
     const WlDataDeviceManagerServerRequestCallbacks *request_callbacks,
     void *user_data) {
   WlDataDeviceManagerServer *self = malloc(sizeof(WlDataDeviceManagerServer));
+  self->client = client;
+  self->id = id;
   self->request_callbacks = request_callbacks;
   self->user_data = user_data;
 

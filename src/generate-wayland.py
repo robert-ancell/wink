@@ -26,9 +26,10 @@ class Event:
 
 
 class Arg:
-    def __init__(self, name, type):
+    def __init__(self, name, type, interface):
         self.name = name
         self.type = type
+        self.interface = interface
 
 
 if len(sys.argv) < 2:
@@ -44,13 +45,25 @@ for interface in tree.findall("interface"):
     for request in interface.findall("request"):
         args = []
         for arg in request.findall("arg"):
-            args.append(Arg(arg.attrib["name"], arg.attrib["type"]))
+            args.append(
+                Arg(
+                    arg.attrib["name"],
+                    arg.attrib["type"],
+                    arg.attrib.get("interface", None),
+                )
+            )
         requests.append(Request(request.attrib["name"], args))
     events = []
     for event in interface.findall("event"):
         args = []
         for arg in event.findall("arg"):
-            args.append(Arg(arg.attrib["name"], arg.attrib["type"]))
+            args.append(
+                Arg(
+                    arg.attrib["name"],
+                    arg.attrib["type"],
+                    arg.attrib.get("interface", None),
+                )
+            )
         events.append(Event(event.attrib["name"], args))
     interfaces.append(
         Interface(
@@ -107,6 +120,9 @@ for interface in interfaces:
     for request in interface.requests:
         args = []
         for arg in request.args:
+            if arg.type == "new_id" and arg.interface is None:
+                args.append("const char *%s_interface" % arg.name)
+                args.append("uint32_t %s_version" % arg.name)
             args.append("%s %s" % (type_to_native(arg.type), arg.name))
         args.append("void *user_data")
         header += "  void (*%s)(%s);\n" % (request.name, ",".join(args))
@@ -135,6 +151,8 @@ for interface in interfaces:
     source += '#include "%s"\n' % header_path
     source += "\n"
     source += "struct _%s {\n" % class_name
+    source += "  WaylandServerClient *client;\n"
+    source += "  uint32_t id;\n"
     source += "  const %s *request_callbacks;\n" % callbacks_struct
     source += "  void *user_data;\n"
     source += "};\n"
@@ -147,12 +165,27 @@ for interface in interfaces:
         )
         args = []
         for arg in request.args:
+            if arg.type == "new_id" and arg.interface is None:
+                source += (
+                    "  const char *%s_interface = wayland_payload_decoder_read_string(decoder);\n"
+                    % arg.name
+                )
+                source += (
+                    "  uint32_t %s_version = wayland_payload_decoder_read_uint(decoder);\n"
+                    % arg.name
+                )
+                args.append("%s_interface" % arg.name)
+                args.append("%s_version" % arg.name)
             source += "  %s %s = wayland_payload_decoder_read_%s(decoder);\n" % (
                 type_to_native(arg.type),
                 arg.name,
                 arg.type,
             )
             args.append("%s" % arg.name)
+        source += "  if (!wayland_payload_decoder_finish(decoder)) {\n"
+        source += "    // FIXME\n"
+        source += "    return;\n"
+        source += "  }\n"
         args.append("self->user_data")
         source += "  self->request_callbacks->%s(%s);\n" % (
             request.name,
@@ -164,17 +197,18 @@ for interface in interfaces:
         "static void %s_request_cb(uint16_t code, WaylandPayloadDecoder *decoder, void *user_data) {\n"
         % interface.name
     )
-    source += "  %s *self = user_data;\n" % class_name
-    source += "\n"
-    source += "  switch(code) {\n"
-    for i, request in enumerate(interface.requests):
-        source += "  case %d:\n" % i
-        source += "    %s_%s(self, decoder);\n" % (
-            interface.name,
-            request.name,
-        )
-        source += "    break;\n"
-    source += "  }\n"
+    if len(interface.requests) > 0:
+        source += "  %s *self = user_data;\n" % class_name
+        source += "\n"
+        source += "  switch(code) {\n"
+        for code, request in enumerate(interface.requests):
+            source += "  case %d:\n" % code
+            source += "    %s_%s(self, decoder);\n" % (
+                interface.name,
+                request.name,
+            )
+            source += "    break;\n"
+        source += "  }\n"
     source += "}\n"
     source += "\n"
     source += (
@@ -182,6 +216,8 @@ for interface in interfaces:
         % (class_name, prefix, callbacks_struct)
     )
     source += "  %s *self = malloc(sizeof(%s));\n" % (class_name, class_name)
+    source += "  self->client = client;\n"
+    source += "  self->id = id;\n"
     source += "  self->request_callbacks = request_callbacks;\n"
     source += "  self->user_data = user_data;\n"
     source += "\n"
@@ -201,13 +237,28 @@ for interface in interfaces:
     source += "void %s_unref(%s *self) {\n" % (prefix, class_name)
     source += "  // FIXME\n"
     source += "}\n"
-    for event in interface.events:
+    for code, event in enumerate(interface.events):
         source += "\n"
         args = ["%s *self" % class_name]
         for arg in event.args:
             args.append("%s %s" % (type_to_native(arg.type), arg.name))
         source += "void %s_%s(%s) {\n" % (prefix, event.name, ",".join(args))
-        source += "  // FIXME\n"
+        source += "  WaylandPayloadEncoder *encoder = wayland_payload_encoder_new();\n"
+        for arg in event.args:
+            source += "  wayland_payload_encoder_write_%s(encoder, %s);\n" % (
+                arg.type,
+                arg.name,
+            )
+        source += "  if (!wayland_payload_encoder_finish(encoder)) {\n"
+        source += "    // FIXME\n"
+        source += "  }\n"
+        source += "\n"
+        source += (
+            "  wayland_server_client_send_event(self->client, self->id, %d, encoder);\n"
+            % code
+        )
+        source += "\n"
+        source += "  wayland_payload_encoder_unref(encoder);\n"
         source += "}\n"
 
     open(header_path, "w").write(header)

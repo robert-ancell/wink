@@ -58,10 +58,11 @@ const char *wayland_payload_decoder_read_string(WaylandPayloadDecoder *self) {
   }
   const char *value = (const char *)(self->data + self->offset);
   // Check nul terminated
-  if (value[length] != '\0') {
+  if (value[length - 1] != '\0') {
     self->error = true;
     return "";
   }
+  self->offset += length;
   // Skip alignment
   while (self->offset % 4 != 0) {
     self->offset++;
@@ -88,9 +89,15 @@ int wayland_payload_decoder_read_fd(WaylandPayloadDecoder *self) {
 }
 
 bool wayland_payload_decoder_finish(WaylandPayloadDecoder *self) {
+  // Error occurred during decoding.
+  if (self->error) {
+    return false;
+  }
+
+  // Unused data.
   if (self->offset != self->data_length) {
     return false;
   }
 
-  return !self->error;
+  return true;
 }

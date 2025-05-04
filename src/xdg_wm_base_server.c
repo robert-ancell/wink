@@ -3,18 +3,28 @@
 #include "xdg_wm_base_server.h"
 
 struct _XdgWmBaseServer {
+  WaylandServerClient *client;
+  uint32_t id;
   const XdgWmBaseServerRequestCallbacks *request_callbacks;
   void *user_data;
 };
 
 static void xdg_wm_base_destroy(XdgWmBaseServer *self,
                                 WaylandPayloadDecoder *decoder) {
+  if (!wayland_payload_decoder_finish(decoder)) {
+    // FIXME
+    return;
+  }
   self->request_callbacks->destroy(self->user_data);
 }
 
 static void xdg_wm_base_create_positioner(XdgWmBaseServer *self,
                                           WaylandPayloadDecoder *decoder) {
   uint32_t id = wayland_payload_decoder_read_new_id(decoder);
+  if (!wayland_payload_decoder_finish(decoder)) {
+    // FIXME
+    return;
+  }
   self->request_callbacks->create_positioner(id, self->user_data);
 }
 
@@ -22,12 +32,20 @@ static void xdg_wm_base_get_xdg_surface(XdgWmBaseServer *self,
                                         WaylandPayloadDecoder *decoder) {
   uint32_t id = wayland_payload_decoder_read_new_id(decoder);
   uint32_t surface = wayland_payload_decoder_read_object(decoder);
+  if (!wayland_payload_decoder_finish(decoder)) {
+    // FIXME
+    return;
+  }
   self->request_callbacks->get_xdg_surface(id, surface, self->user_data);
 }
 
 static void xdg_wm_base_pong(XdgWmBaseServer *self,
                              WaylandPayloadDecoder *decoder) {
   uint32_t serial = wayland_payload_decoder_read_uint(decoder);
+  if (!wayland_payload_decoder_finish(decoder)) {
+    // FIXME
+    return;
+  }
   self->request_callbacks->pong(serial, self->user_data);
 }
 
@@ -57,6 +75,8 @@ xdg_wm_base_server_new(WaylandServerClient *client, uint32_t id,
                        const XdgWmBaseServerRequestCallbacks *request_callbacks,
                        void *user_data) {
   XdgWmBaseServer *self = malloc(sizeof(XdgWmBaseServer));
+  self->client = client;
+  self->id = id;
   self->request_callbacks = request_callbacks;
   self->user_data = user_data;
 
@@ -75,5 +95,13 @@ void xdg_wm_base_server_unref(XdgWmBaseServer *self) {
 }
 
 void xdg_wm_base_server_ping(XdgWmBaseServer *self, uint32_t serial) {
-  // FIXME
+  WaylandPayloadEncoder *encoder = wayland_payload_encoder_new();
+  wayland_payload_encoder_write_uint(encoder, serial);
+  if (!wayland_payload_encoder_finish(encoder)) {
+    // FIXME
+  }
+
+  wayland_server_client_send_event(self->client, self->id, 0, encoder);
+
+  wayland_payload_encoder_unref(encoder);
 }
