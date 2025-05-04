@@ -24,27 +24,40 @@ class Event:
         self.args = args
 
 
+class Arg:
+    def __init__(self, name, type):
+        self.name = name
+        self.type = type
+
+
 interfaces = []
 tree = xml.etree.ElementTree.parse("wayland.xml")
 root = tree.getroot()
 for interface in tree.findall("interface"):
     requests = []
     for request in interface.findall("request"):
-        requests.append(Request(request.attrib["name"], []))
+        args = []
+        for arg in request.findall("arg"):
+            args.append(Arg(arg.attrib["name"], arg.attrib["type"]))
+        requests.append(Request(request.attrib["name"], args))
     events = []
     for event in interface.findall("event"):
-        events.append(Event(event.attrib["name"], []))
+        args = []
+        for arg in event.findall("arg"):
+            args.append(Arg(arg.attrib["name"], arg.attrib["type"]))
+        events.append(Event(event.attrib["name"], args))
     interfaces.append(
         Interface(
             interface.attrib["name"], interface.attrib["version"], requests, events
         )
     )
 
+
 def snake_to_camel(name):
-    camel_name = ''
+    camel_name = ""
     is_start = True
     for c in name:
-        if c == '_':
+        if c == "_":
             is_start = True
         else:
             if is_start:
@@ -54,36 +67,59 @@ def snake_to_camel(name):
                 camel_name += c
     return camel_name
 
+
+def type_to_native(type):
+    return {
+        "int": "int32_t",
+        "uint": "uint32_t",
+        "fixed", "double",
+        "string": "const char *",
+        "object": "uint32_t",
+        "new_id": "uint32_t",
+        "fd": "int",
+    }[type]
+
+
 for interface in interfaces:
     header_path = interface.name + "_server.h"
     source_path = interface.name + "_server.c"
 
-    class_name = snake_to_camel(interface.name) + 'Server'
+    class_name = snake_to_camel(interface.name) + "Server"
     prefix = "%s_server" % interface.name
     callbacks_struct = "%sRequestCallbacks" % class_name
 
     header = ""
-    header += "#pragma once\n"    
+    header += "#pragma once\n"
     header += "\n"
     header += "#include <stdint.h>\n"
     header += "\n"
     header += '#include "wayland_server_client.h"\n'
     header += "\n"
-    header += 'typedef struct {\n'
+    header += "typedef struct {\n"
     for request in interface.requests:
-        header += '  void (*%s)(void *user_data);\n' % request.name
-    header += '} %s;\n' % callbacks_struct
-    header += "\n"    
-    header += 'typedef struct _%s %s;\n' % (class_name, class_name)
+        args = []
+        for arg in request.args:
+            args.append("%s %s" % (type_to_native(arg.type), arg.name))
+        args.append("void *user_data")
+        header += "  void (*%s)(%s);\n" % (request.name, ",".join(args))
+    header += "} %s;\n" % callbacks_struct
     header += "\n"
-    header += "%s *%s_new(WaylandServerClient *client, uint32_t id, const %s *request_callbacks, void *user_data);\n" % (class_name, prefix, callbacks_struct)
+    header += "typedef struct _%s %s;\n" % (class_name, class_name)
+    header += "\n"
+    header += (
+        "%s *%s_new(WaylandServerClient *client, uint32_t id, const %s *request_callbacks, void *user_data);\n"
+        % (class_name, prefix, callbacks_struct)
+    )
     header += "\n"
     header += "%s *%s_ref(%s *self);\n" % (class_name, prefix, class_name)
     header += "\n"
     header += "void %s_unref(%s *self);\n" % (prefix, class_name)
     for event in interface.events:
         header += "\n"
-        header += "void %s_%s(%s *self);\n" % (prefix, event.name, class_name)
+        args = ["%s *self" % class_name]
+        for arg in event.args:
+            args.append("%s %s" % (type_to_native(arg.type), arg.name))
+        header += "void %s_%s(%s);\n" % (prefix, event.name, ",".join(args))
 
     source = ""
     source += "#include <stdlib.h>\n"
@@ -100,7 +136,15 @@ for interface in interfaces:
             "static void %s_%s(%s *self, const uint8_t *payload, uint16_t payload_length) {\n"
             % (interface.name, request.name, class_name)
         )
-        source += "  self->request_callbacks->%s(self->user_data);\n" % request.name
+        args = []
+        for arg in request.args:
+            source += "  %s %s;\n" % (type_to_native(arg.type), arg.name)
+            args.append("%s" % arg.name)
+        args.append("self->user_data")
+        source += "  self->request_callbacks->%s(%s);\n" % (
+            request.name,
+            ",".join(args),
+        )
         source += "}\n"
     source += "\n"
     source += (
@@ -146,7 +190,10 @@ for interface in interfaces:
     source += "}\n"
     for event in interface.events:
         source += "\n"
-        source += "void %s_%s(%s *self) {\n" % (prefix, event.name, class_name)
+        args = ["%s *self" % class_name]
+        for arg in event.args:
+            args.append("%s %s" % (type_to_native(arg.type), arg.name))
+        source += "void %s_%s(%s) {\n" % (prefix, event.name, ",".join(args))
         source += "  // FIXME\n"
         source += "}\n"
 

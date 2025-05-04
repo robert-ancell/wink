@@ -5,6 +5,7 @@
 #include <unistd.h>
 
 #include "wayland_server_client.h"
+#include "wl_compositor_server.h"
 #include "wl_shm_server.h"
 
 #define WL_DISPLAY_ID 1
@@ -58,40 +59,22 @@ static size_t set_string(uint8_t *payload, size_t offset, const char *value) {
   return offset;
 }
 
-static void wl_compositor_create_surface(WaylandServerClient *self,
-                                         const uint8_t *payload,
-                                         uint16_t payload_length) {
-  uint32_t id;
-  size_t offset = 0;
-  offset = get_uint(payload, offset, &id);
-
+static void wl_compositor_create_surface(uint32_t id, void *user_data) {
   printf("wl_compositor::create_surface %d\n", id);
 }
 
-static void wl_compositor_create_region(WaylandServerClient *self,
-                                        const uint8_t *payload,
-                                        uint16_t payload_length) {
-  // FIXME
-  printf("wl_compositor::create_region\n");
+static void wl_compositor_create_region(uint32_t id, void *user_data) {
+  printf("wl_compositor::create_region %d\n", id);
 }
 
-static void wl_compositor_request_cb(uint16_t code, const uint8_t *payload,
-                                     uint16_t payload_length, void *user_data) {
-  WaylandServerClient *self = user_data;
+static WlCompositorServerRequestCallbacks wl_compositor_request_callbacks = {
+    .create_surface = wl_compositor_create_surface,
+    .create_region = wl_compositor_create_region};
 
-  switch (code) {
-  case 0:
-    wl_compositor_create_surface(self, payload, payload_length);
-    break;
-  case 1:
-    wl_compositor_create_region(self, payload, payload_length);
-    break;
-  }
-}
-
-static void wl_shm_create_pool(void *user_data) {
+static void wl_shm_create_pool(uint32_t id, int fd, int32_t size,
+                               void *user_data) {
   // FIXME
-  printf("wl_shm::create_pool\n");
+  printf("wl_shm::create_pool %d\n", id);
 }
 
 static void wl_shm_release(void *user_data) { printf("wl_shm::release\n"); }
@@ -180,7 +163,8 @@ static void wl_registry_bind(WaylandServerClient *self, const uint8_t *payload,
 
   switch (name) {
   case 1:
-    wayland_server_client_add_object(self, id, wl_compositor_request_cb, self);
+    // FIXME: Store object
+    wl_compositor_server_new(self, id, &wl_compositor_request_callbacks, self);
     break;
   case 2:
     // FIXME: Store object

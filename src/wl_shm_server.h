@@ -5,7 +5,7 @@
 #include "wayland_server_client.h"
 
 typedef struct {
-  void (*create_pool)(void *user_data);
+  void (*create_pool)(uint32_t id, int fd, int32_t size, void *user_data);
   void (*release)(void *user_data);
 } WlShmServerRequestCallbacks;
 
@@ -20,4 +20,4 @@ WlShmServer *wl_shm_server_ref(WlShmServer *self);
 
 void wl_shm_server_unref(WlShmServer *self);
 
-void wl_shm_server_format(WlShmServer *self);
+void wl_shm_server_format(WlShmServer *self, uint32_t format);

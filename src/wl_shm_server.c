@@ -9,7 +9,10 @@ struct _WlShmServer {
 
 static void wl_shm_create_pool(WlShmServer *self, const uint8_t *payload,
                                uint16_t payload_length) {
-  self->request_callbacks->create_pool(self->user_data);
+  uint32_t id;
+  int fd;
+  int32_t size;
+  self->request_callbacks->create_pool(id, fd, size, self->user_data);
 }
 
 static void wl_shm_release(WlShmServer *self, const uint8_t *payload,
@@ -53,6 +56,6 @@ void wl_shm_server_unref(WlShmServer *self) {
   // FIXME
 }
 
-void wl_shm_server_format(WlShmServer *self) {
+void wl_shm_server_format(WlShmServer *self, uint32_t format) {
   // FIXME
 }
