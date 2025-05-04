@@ -22,20 +22,6 @@ struct _WaylandServerClient {
   size_t objects_length;
 };
 
-static size_t get_uint(const uint8_t *payload, size_t offset, uint32_t *value) {
-  *value = *(uint32_t *)(payload + offset);
-  return offset + 4;
-}
-
-static size_t get_string(const uint8_t *payload, size_t offset,
-                         const char **value) {
-  uint32_t length;
-  offset = get_uint(payload, offset, &length);
-  *value = (const char *)(payload + offset);
-  size_t n_words = (length + 3) / 4;
-  return offset + n_words * 4;
-}
-
 static size_t set_uint(uint8_t *payload, size_t offset, uint32_t value) {
   *(uint32_t *)(payload + offset) = value;
   return offset + 4;
@@ -83,59 +69,58 @@ static WlShmServerRequestCallbacks wl_shm_request_callbacks = {
     .create_pool = wl_shm_create_pool, .release = wl_shm_release};
 
 static void wl_data_device_manager_request_cb(uint16_t code,
-                                              const uint8_t *payload,
-                                              uint16_t payload_length,
+                                              WaylandPayloadDecoder *decoder,
                                               void *user_data) {}
 
 static void xdg_wm_base_destroy(WaylandServerClient *self,
-                                const uint8_t *payload,
-                                uint16_t payload_length) {
+                                WaylandPayloadDecoder *decoder) {
   printf("xdg_wm_base::destroy\n");
 }
 
 static void xdg_wm_base_create_positioner(WaylandServerClient *self,
-                                          const uint8_t *payload,
-                                          uint16_t payload_length) {
+                                          WaylandPayloadDecoder *decoder) {
   printf("xdg_wm_base::create_positioner\n");
 }
 
 static void xdg_wm_base_get_xdg_surface(WaylandServerClient *self,
-                                        const uint8_t *payload,
-                                        uint16_t payload_length) {
-  uint32_t id, surface;
-  size_t offset = 0;
-  offset = get_uint(payload, offset, &id);
-  offset = get_uint(payload, offset, &surface);
+                                        WaylandPayloadDecoder *decoder) {
+  uint32_t id = wayland_payload_decoder_read_uint(decoder);
+  uint32_t surface = wayland_payload_decoder_read_uint(decoder);
+  if (!wayland_payload_decoder_finish(decoder)) {
+    return;
+  }
   printf("xdg_wm_base::get_xdg_surface %d %d\n", id, surface);
 }
 
-static void xdg_wm_base_pong(WaylandServerClient *self, const uint8_t *payload,
-                             uint16_t payload_length) {
+static void xdg_wm_base_pong(WaylandServerClient *self,
+                             WaylandPayloadDecoder *decoder) {
   printf("xdg_wm_base::pong\n");
 }
 
-static void xdg_wm_base_request_cb(uint16_t code, const uint8_t *payload,
-                                   uint16_t payload_length, void *user_data) {
+static void xdg_wm_base_request_cb(uint16_t code,
+                                   WaylandPayloadDecoder *decoder,
+                                   void *user_data) {
   WaylandServerClient *self = user_data;
 
   switch (code) {
   case 0:
-    xdg_wm_base_destroy(self, payload, payload_length);
+    xdg_wm_base_destroy(self, decoder);
     break;
   case 1:
-    xdg_wm_base_create_positioner(self, payload, payload_length);
+    xdg_wm_base_create_positioner(self, decoder);
     break;
   case 2:
-    xdg_wm_base_get_xdg_surface(self, payload, payload_length);
+    xdg_wm_base_get_xdg_surface(self, decoder);
     break;
   case 3:
-    xdg_wm_base_pong(self, payload, payload_length);
+    xdg_wm_base_pong(self, decoder);
     break;
   }
 }
 
-static void wl_callback_request_cb(uint16_t code, const uint8_t *payload,
-                                   uint16_t payload_length, void *user_data) {}
+static void wl_callback_request_cb(uint16_t code,
+                                   WaylandPayloadDecoder *decoder,
+                                   void *user_data) {}
 
 static void wl_callback_done(WaylandServerClient *self, uint32_t id,
                              uint32_t callback_data) {
@@ -144,20 +129,15 @@ static void wl_callback_done(WaylandServerClient *self, uint32_t id,
   wayland_server_client_send_event(self, id, 0, payload, sizeof(payload));
 }
 
-static void wl_registry_bind(WaylandServerClient *self, const uint8_t *payload,
-                             uint16_t payload_length) {
-  // if (payload_length != 8)
-  //  {
-  // return;
-  // }
-
-  uint32_t name, version, id;
-  const char *interface;
-  size_t offset = 0;
-  offset = get_uint(payload, offset, &name);
-  offset = get_string(payload, offset, &interface);
-  offset = get_uint(payload, offset, &version);
-  offset = get_uint(payload, offset, &id);
+static void wl_registry_bind(WaylandServerClient *self,
+                             WaylandPayloadDecoder *decoder) {
+  uint32_t name = wayland_payload_decoder_read_uint(decoder);
+  const char *interface = wayland_payload_decoder_read_string(decoder);
+  uint32_t version = wayland_payload_decoder_read_uint(decoder);
+  uint32_t id = wayland_payload_decoder_read_uint(decoder);
+  if (!wayland_payload_decoder_finish(decoder)) {
+    return;
+  }
 
   printf("wl_registry::bind %d %s %d %d\n", name, interface, version, id);
 
@@ -180,13 +160,14 @@ static void wl_registry_bind(WaylandServerClient *self, const uint8_t *payload,
   }
 }
 
-static void wl_registry_request_cb(uint16_t code, const uint8_t *payload,
-                                   uint16_t payload_length, void *user_data) {
+static void wl_registry_request_cb(uint16_t code,
+                                   WaylandPayloadDecoder *decoder,
+                                   void *user_data) {
   WaylandServerClient *self = user_data;
 
   switch (code) {
   case 0:
-    wl_registry_bind(self, payload, payload_length);
+    wl_registry_bind(self, decoder);
     break;
   }
 }
@@ -209,14 +190,12 @@ static void wl_registry_global_remove(WaylandServerClient *self, uint32_t id,
   wayland_server_client_send_event(self, id, 1, payload, sizeof(payload));
 }
 
-static void wl_display_sync(WaylandServerClient *self, const uint8_t *payload,
-                            uint16_t payload_length) {
-  if (payload_length != 4) {
+static void wl_display_sync(WaylandServerClient *self,
+                            WaylandPayloadDecoder *decoder) {
+  uint32_t callback = wayland_payload_decoder_read_uint(decoder);
+  if (!wayland_payload_decoder_finish(decoder)) {
     return;
   }
-
-  uint32_t callback;
-  get_uint(payload, 0, &callback);
 
   printf("wl_display::sync %d\n", callback);
 
@@ -227,14 +206,11 @@ static void wl_display_sync(WaylandServerClient *self, const uint8_t *payload,
 }
 
 static void wl_display_get_registry(WaylandServerClient *self,
-                                    const uint8_t *payload,
-                                    uint16_t payload_length) {
-  if (payload_length != 4) {
+                                    WaylandPayloadDecoder *decoder) {
+  uint32_t id = wayland_payload_decoder_read_uint(decoder);
+  if (!wayland_payload_decoder_finish(decoder)) {
     return;
   }
-
-  uint32_t id;
-  get_uint(payload, 0, &id);
 
   printf("wl_display::get_registry %d\n", id);
 
@@ -245,16 +221,16 @@ static void wl_display_get_registry(WaylandServerClient *self,
   wl_registry_global(self, id, 4, "xdg_wm_base", 6);
 }
 
-static void wl_display_request_cb(uint16_t code, const uint8_t *payload,
-                                  uint16_t payload_length, void *user_data) {
+static void wl_display_request_cb(uint16_t code, WaylandPayloadDecoder *decoder,
+                                  void *user_data) {
   WaylandServerClient *self = user_data;
 
   switch (code) {
   case 0:
-    wl_display_sync(self, payload, payload_length);
+    wl_display_sync(self, decoder);
     break;
   case 1:
-    wl_display_get_registry(self, payload, payload_length);
+    wl_display_get_registry(self, decoder);
     break;
   default:
     break;
@@ -274,16 +250,15 @@ static WaylandObject *find_object(WaylandServerClient *self, uint32_t id) {
 }
 
 static void decode_request(WaylandServerClient *self, uint32_t id,
-                           uint16_t code, const uint8_t *payload,
-                           uint16_t payload_length) {
-  printf("%d %d (%d)\n", id, code, payload_length);
+                           uint16_t code, WaylandPayloadDecoder *decoder) {
   WaylandObject *o = find_object(self, id);
   if (o == NULL) {
     // FIXME: Generate error
+    printf("unknown object %d\n", id);
     return;
   }
 
-  o->request_callback(code, payload, payload_length, o->user_data);
+  o->request_callback(code, decoder, o->user_data);
 }
 
 static void read_cb(void *user_data) {
@@ -312,7 +287,10 @@ static void read_cb(void *user_data) {
     uint32_t id = header[0];
     uint16_t code = header[1] & 0xffff;
     uint8_t *payload = data + offset + 8;
-    decode_request(self, id, code, payload, length - 8);
+    WaylandPayloadDecoder *decoder =
+        wayland_payload_decoder_new(payload, length - 8);
+    decode_request(self, id, code, decoder);
+    wayland_payload_decoder_unref(decoder);
 
     offset += length;
   }

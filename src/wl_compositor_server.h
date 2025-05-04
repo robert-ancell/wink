@@ -2,6 +2,7 @@
 
 #include <stdint.h>
 
+#include "wayland_payload_decoder.h"
 #include "wayland_server_client.h"
 
 typedef struct {

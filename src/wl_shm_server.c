@@ -7,29 +7,28 @@ struct _WlShmServer {
   void *user_data;
 };
 
-static void wl_shm_create_pool(WlShmServer *self, const uint8_t *payload,
-                               uint16_t payload_length) {
+static void wl_shm_create_pool(WlShmServer *self,
+                               WaylandPayloadDecoder *decoder) {
   uint32_t id;
   int fd;
   int32_t size;
   self->request_callbacks->create_pool(id, fd, size, self->user_data);
 }
 
-static void wl_shm_release(WlShmServer *self, const uint8_t *payload,
-                           uint16_t payload_length) {
+static void wl_shm_release(WlShmServer *self, WaylandPayloadDecoder *decoder) {
   self->request_callbacks->release(self->user_data);
 }
 
-static void wl_shm_request_cb(uint16_t code, const uint8_t *payload,
-                              uint16_t payload_length, void *user_data) {
+static void wl_shm_request_cb(uint16_t code, WaylandPayloadDecoder *decoder,
+                              void *user_data) {
   WlShmServer *self = user_data;
 
   switch (code) {
   case 0:
-    wl_shm_create_pool(self, payload, payload_length);
+    wl_shm_create_pool(self, decoder);
     break;
   case 1:
-    wl_shm_release(self, payload, payload_length);
+    wl_shm_release(self, decoder);
     break;
   }
 }

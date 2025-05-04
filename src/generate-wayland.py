@@ -72,7 +72,7 @@ def type_to_native(type):
     return {
         "int": "int32_t",
         "uint": "uint32_t",
-        "fixed", "double",
+        "fixed": "double",
         "string": "const char *",
         "object": "uint32_t",
         "new_id": "uint32_t",
@@ -93,6 +93,7 @@ for interface in interfaces:
     header += "\n"
     header += "#include <stdint.h>\n"
     header += "\n"
+    header += '#include "wayland_payload_decoder.h"\n'
     header += '#include "wayland_server_client.h"\n'
     header += "\n"
     header += "typedef struct {\n"
@@ -132,9 +133,10 @@ for interface in interfaces:
     source += "};\n"
     for request in interface.requests:
         source += "\n"
-        source += (
-            "static void %s_%s(%s *self, const uint8_t *payload, uint16_t payload_length) {\n"
-            % (interface.name, request.name, class_name)
+        source += "static void %s_%s(%s *self, WaylandPayloadDecoder *decoder) {\n" % (
+            interface.name,
+            request.name,
+            class_name,
         )
         args = []
         for arg in request.args:
@@ -148,7 +150,7 @@ for interface in interfaces:
         source += "}\n"
     source += "\n"
     source += (
-        "static void %s_request_cb(uint16_t code, const uint8_t *payload, uint16_t payload_length, void *user_data) {\n"
+        "static void %s_request_cb(uint16_t code, WaylandPayloadDecoder *decoder, void *user_data) {\n"
         % interface.name
     )
     source += "  %s *self = user_data;\n" % class_name
@@ -156,7 +158,7 @@ for interface in interfaces:
     source += "  switch(code) {\n"
     for i, request in enumerate(interface.requests):
         source += "  case %d:\n" % i
-        source += "    %s_%s(self, payload, payload_length);\n" % (
+        source += "    %s_%s(self, decoder);\n" % (
             interface.name,
             request.name,
         )

@@ -4,13 +4,12 @@
 #include <stdint.h>
 
 #include "main_loop.h"
+#include "wayland_payload_decoder.h"
 
 typedef struct _WaylandServerClient WaylandServerClient;
 
-typedef void (*WaylandServerClientRequestCallback)(uint16_t code,
-                                                   const uint8_t *payload,
-                                                   uint16_t payload_length,
-                                                   void *user_data);
+typedef void (*WaylandServerClientRequestCallback)(
+    uint16_t code, WaylandPayloadDecoder *decoder, void *user_data);
 
 WaylandServerClient *wayland_server_client_new(MainLoop *loop, int fd);
 

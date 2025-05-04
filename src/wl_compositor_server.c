@@ -8,29 +8,28 @@ struct _WlCompositorServer {
 };
 
 static void wl_compositor_create_surface(WlCompositorServer *self,
-                                         const uint8_t *payload,
-                                         uint16_t payload_length) {
+                                         WaylandPayloadDecoder *decoder) {
   uint32_t id;
   self->request_callbacks->create_surface(id, self->user_data);
 }
 
 static void wl_compositor_create_region(WlCompositorServer *self,
-                                        const uint8_t *payload,
-                                        uint16_t payload_length) {
+                                        WaylandPayloadDecoder *decoder) {
   uint32_t id;
   self->request_callbacks->create_region(id, self->user_data);
 }
 
-static void wl_compositor_request_cb(uint16_t code, const uint8_t *payload,
-                                     uint16_t payload_length, void *user_data) {
+static void wl_compositor_request_cb(uint16_t code,
+                                     WaylandPayloadDecoder *decoder,
+                                     void *user_data) {
   WlCompositorServer *self = user_data;
 
   switch (code) {
   case 0:
-    wl_compositor_create_surface(self, payload, payload_length);
+    wl_compositor_create_surface(self, decoder);
     break;
   case 1:
-    wl_compositor_create_region(self, payload, payload_length);
+    wl_compositor_create_region(self, decoder);
     break;
   }
 }
