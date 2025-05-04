@@ -5,6 +5,7 @@
 #include <unistd.h>
 
 #include "wayland_server_client.h"
+#include "wl_buffer_server.h"
 #include "wl_callback_server.h"
 #include "wl_compositor_server.h"
 #include "wl_data_device_manager_server.h"
@@ -218,13 +219,22 @@ static WlCompositorServerRequestCallbacks wl_compositor_request_callbacks = {
     .create_surface = wl_compositor_create_surface,
     .create_region = wl_compositor_create_region};
 
+static void wl_buffer_destroy(void *user_data) {
+  printf("wl_buffer::destroy\n");
+}
+
+static WlBufferServerRequestCallbacks wl_buffer_request_callbacks = {
+    .destroy = wl_buffer_destroy};
+
 static void wl_shm_pool_create_buffer(uint32_t id, int32_t offset,
                                       int32_t width, int32_t height,
                                       int32_t stride, uint32_t format,
                                       void *user_data) {
+  WaylandServerClient *self = user_data;
+
   printf("wl_shm_pool::create_buffer\n");
 
-  // FIXME
+  wl_buffer_server_new(self, id, &wl_buffer_request_callbacks, self);
 }
 
 static void wl_shm_pool_destroy(void *user_data) {
