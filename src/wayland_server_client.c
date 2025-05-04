@@ -5,6 +5,7 @@
 #include <unistd.h>
 
 #include "wayland_server_client.h"
+#include "wl_shm_server.h"
 
 #define WL_DISPLAY_ID 1
 
@@ -88,31 +89,15 @@ static void wl_compositor_request_cb(uint16_t code, const uint8_t *payload,
   }
 }
 
-static void wl_shm_create_pool(WaylandServerClient *self,
-                               const uint8_t *payload,
-                               uint16_t payload_length) {
+static void wl_shm_create_pool(void *user_data) {
   // FIXME
   printf("wl_shm::create_pool\n");
 }
 
-static void wl_shm_release(WaylandServerClient *self, const uint8_t *payload,
-                           uint16_t payload_length) {
-  printf("wl_shm::release\n");
-}
+static void wl_shm_release(void *user_data) { printf("wl_shm::release\n"); }
 
-static void wl_shm_request_cb(uint16_t code, const uint8_t *payload,
-                              uint16_t payload_length, void *user_data) {
-  WaylandServerClient *self = user_data;
-
-  switch (code) {
-  case 0:
-    wl_shm_create_pool(self, payload, payload_length);
-    break;
-  case 1:
-    wl_shm_release(self, payload, payload_length);
-    break;
-  }
-}
+static WlShmServerRequestCallbacks wl_shm_request_callbacks = {
+    .create_pool = wl_shm_create_pool, .release = wl_shm_release};
 
 static void wl_data_device_manager_request_cb(uint16_t code,
                                               const uint8_t *payload,
@@ -198,7 +183,7 @@ static void wl_registry_bind(WaylandServerClient *self, const uint8_t *payload,
     wayland_server_client_add_object(self, id, wl_compositor_request_cb, self);
     break;
   case 2:
-    wayland_server_client_add_object(self, id, wl_shm_request_cb, self);
+    wl_shm_server_new(self, id, &wl_shm_request_callbacks, self);
     break;
   case 3:
     wayland_server_client_add_object(self, id,
