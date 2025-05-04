@@ -6,7 +6,9 @@
 
 #include "wayland_server_client.h"
 #include "wl_compositor_server.h"
+#include "wl_data_device_manager_server.h"
 #include "wl_shm_server.h"
+#include "xdg_wm_base_server.h"
 
 #define WL_DISPLAY_ID 1
 
@@ -68,55 +70,43 @@ static void wl_shm_release(void *user_data) { printf("wl_shm::release\n"); }
 static WlShmServerRequestCallbacks wl_shm_request_callbacks = {
     .create_pool = wl_shm_create_pool, .release = wl_shm_release};
 
-static void wl_data_device_manager_request_cb(uint16_t code,
-                                              WaylandPayloadDecoder *decoder,
-                                              void *user_data) {}
+static void wl_data_device_manager_create_data_source(uint32_t id,
+                                                      void *user_data) {
+  printf("wl_data_device_manager::create_data_source\n");
+}
 
-static void xdg_wm_base_destroy(WaylandServerClient *self,
-                                WaylandPayloadDecoder *decoder) {
+static void wl_data_device_manager_get_data_device(uint32_t id, uint32_t seat,
+                                                   void *user_data) {
+  printf("wl_data_device_manager::get_data_device\n");
+}
+
+static WlDataDeviceManagerServerRequestCallbacks
+    wl_data_device_manager_request_callbacks = {
+        .create_data_source = wl_data_device_manager_create_data_source,
+        .get_data_device = wl_data_device_manager_get_data_device};
+
+static void xdg_wm_base_destroy(void *user_data) {
   printf("xdg_wm_base::destroy\n");
 }
 
-static void xdg_wm_base_create_positioner(WaylandServerClient *self,
-                                          WaylandPayloadDecoder *decoder) {
+static void xdg_wm_base_create_positioner(uint32_t id, void *user_data) {
   printf("xdg_wm_base::create_positioner\n");
 }
 
-static void xdg_wm_base_get_xdg_surface(WaylandServerClient *self,
-                                        WaylandPayloadDecoder *decoder) {
-  uint32_t id = wayland_payload_decoder_read_uint(decoder);
-  uint32_t surface = wayland_payload_decoder_read_uint(decoder);
-  if (!wayland_payload_decoder_finish(decoder)) {
-    return;
-  }
+static void xdg_wm_base_get_xdg_surface(uint32_t id, uint32_t surface,
+                                        void *user_data) {
   printf("xdg_wm_base::get_xdg_surface %d %d\n", id, surface);
 }
 
-static void xdg_wm_base_pong(WaylandServerClient *self,
-                             WaylandPayloadDecoder *decoder) {
-  printf("xdg_wm_base::pong\n");
+static void xdg_wm_base_pong(uint32_t serial, void *user_data) {
+  printf("xdg_wm_base::pong %d\n", serial);
 }
 
-static void xdg_wm_base_request_cb(uint16_t code,
-                                   WaylandPayloadDecoder *decoder,
-                                   void *user_data) {
-  WaylandServerClient *self = user_data;
-
-  switch (code) {
-  case 0:
-    xdg_wm_base_destroy(self, decoder);
-    break;
-  case 1:
-    xdg_wm_base_create_positioner(self, decoder);
-    break;
-  case 2:
-    xdg_wm_base_get_xdg_surface(self, decoder);
-    break;
-  case 3:
-    xdg_wm_base_pong(self, decoder);
-    break;
-  }
-}
+static XdgWmBaseServerRequestCallbacks xdg_wm_base_request_callbacks = {
+    .destroy = xdg_wm_base_destroy,
+    .create_positioner = xdg_wm_base_create_positioner,
+    .get_xdg_surface = xdg_wm_base_get_xdg_surface,
+    .pong = xdg_wm_base_pong};
 
 static void wl_callback_request_cb(uint16_t code,
                                    WaylandPayloadDecoder *decoder,
@@ -151,11 +141,13 @@ static void wl_registry_bind(WaylandServerClient *self,
     wl_shm_server_new(self, id, &wl_shm_request_callbacks, self);
     break;
   case 3:
-    wayland_server_client_add_object(self, id,
-                                     wl_data_device_manager_request_cb, self);
+    // FIXME: Store object
+    wl_data_device_manager_server_new(
+        self, id, &wl_data_device_manager_request_callbacks, self);
     break;
   case 4:
-    wayland_server_client_add_object(self, id, xdg_wm_base_request_cb, self);
+    // FIXME: Store object
+    xdg_wm_base_server_new(self, id, &xdg_wm_base_request_callbacks, self);
     break;
   }
 }

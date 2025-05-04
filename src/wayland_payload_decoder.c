@@ -16,6 +16,7 @@ WaylandPayloadDecoder *wayland_payload_decoder_new(const uint8_t *data,
   self->data = data;
   self->data_length = data_length;
   self->offset = 0;
+  self->error = false;
 
   return self;
 }

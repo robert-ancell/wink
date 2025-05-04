@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 
 import os
+import sys
 import xml.etree.ElementTree
 
 
@@ -30,8 +31,13 @@ class Arg:
         self.type = type
 
 
+if len(sys.argv) < 2:
+    print("Usage generate-wayland.py [protocol.xml]")
+    sys.exit(1)
+protocol_path = sys.argv[1]
+
 interfaces = []
-tree = xml.etree.ElementTree.parse("wayland.xml")
+tree = xml.etree.ElementTree.parse(protocol_path)
 root = tree.getroot()
 for interface in tree.findall("interface"):
     requests = []
