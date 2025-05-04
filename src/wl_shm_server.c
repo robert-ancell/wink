@@ -52,3 +52,7 @@ WlShmServer *wl_shm_server_ref(WlShmServer *self) {
 void wl_shm_server_unref(WlShmServer *self) {
   // FIXME
 }
+
+void wl_shm_server_format(WlShmServer *self) {
+  // FIXME
+}

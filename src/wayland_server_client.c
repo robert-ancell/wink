@@ -183,6 +183,7 @@ static void wl_registry_bind(WaylandServerClient *self, const uint8_t *payload,
     wayland_server_client_add_object(self, id, wl_compositor_request_cb, self);
     break;
   case 2:
+    // FIXME: Store object
     wl_shm_server_new(self, id, &wl_shm_request_callbacks, self);
     break;
   case 3:

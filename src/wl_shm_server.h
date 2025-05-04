@@ -19,3 +19,5 @@ wl_shm_server_new(WaylandServerClient *client, uint32_t id,
 WlShmServer *wl_shm_server_ref(WlShmServer *self);
 
 void wl_shm_server_unref(WlShmServer *self);
+
+void wl_shm_server_format(WlShmServer *self);
