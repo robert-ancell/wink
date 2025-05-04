@@ -11,6 +11,9 @@
 #include "wl_display_server.h"
 #include "wl_registry_server.h"
 #include "wl_shm_server.h"
+#include "wl_surface_server.h"
+#include "xdg_surface_server.h"
+#include "xdg_toplevel_server.h"
 #include "xdg_wm_base_server.h"
 
 #define WL_DISPLAY_ID 1
@@ -27,8 +30,183 @@ struct _WaylandServerClient {
   size_t objects_length;
 };
 
+static void xdg_toplevel_destroy(void *user_data) {
+  printf("xdg_toplevel::destroy\n");
+}
+
+static void xdg_toplevel_set_parent(uint32_t parent, void *user_data) {
+  printf("xdg_toplevel::set_parent %d\n", parent);
+}
+
+static void xdg_toplevel_set_title(const char *title, void *user_data) {
+  printf("xdg_toplevel::set_title '%s'\n", title);
+}
+
+static void xdg_toplevel_set_app_id(const char *app_id, void *user_data) {
+  printf("xdg_toplevel::set_app_id '%s'\n", app_id);
+}
+
+static void xdg_toplevel_show_window_menu(uint32_t seat, uint32_t serial,
+                                          int32_t x, int32_t y,
+                                          void *user_data) {
+  printf("xdg_toplevel::show_window_menu\n");
+}
+
+static void xdg_toplevel_move(uint32_t seat, uint32_t serial, void *user_data) {
+  printf("xdg_toplevel::move\n");
+}
+
+static void xdg_toplevel_resize(uint32_t seat, uint32_t serial, uint32_t edges,
+                                void *user_data) {
+  printf("xdg_toplevel::resize\n");
+}
+
+static void xdg_toplevel_set_max_size(int32_t width, int32_t height,
+                                      void *user_data) {
+  printf("xdg_toplevel::set_max_size %dx%d\n", width, height);
+}
+
+static void xdg_toplevel_set_min_size(int32_t width, int32_t height,
+                                      void *user_data) {
+  printf("xdg_toplevel::set_min_size %dx%d\n", width, height);
+}
+
+static void xdg_toplevel_set_maximized(void *user_data) {
+  printf("xdg_toplevel::set_maximized\n");
+}
+
+static void xdg_toplevel_unset_maximized(void *user_data) {
+  printf("xdg_toplevel::unset_maximized\n");
+}
+
+static void xdg_toplevel_set_fullscreen(uint32_t output, void *user_data) {
+  printf("xdg_toplevel::set_fullscreen %d\n", output);
+}
+
+static void xdg_toplevel_unset_fullscreen(void *user_data) {
+  printf("xdg_toplevel::unset_fullscreen\n");
+}
+
+static void xdg_toplevel_set_minimized(void *user_data) {
+  printf("xdg_toplevel::set_minimized\n");
+}
+
+static XdgToplevelServerRequestCallbacks xdg_toplevel_request_callbacks = {
+    .destroy = xdg_toplevel_destroy,
+    .set_parent = xdg_toplevel_set_parent,
+    .set_title = xdg_toplevel_set_title,
+    .set_app_id = xdg_toplevel_set_app_id,
+    .show_window_menu = xdg_toplevel_show_window_menu,
+    .move = xdg_toplevel_move,
+    .resize = xdg_toplevel_resize,
+    .set_max_size = xdg_toplevel_set_max_size,
+    .set_min_size = xdg_toplevel_set_min_size,
+    .set_maximized = xdg_toplevel_set_maximized,
+    .unset_maximized = xdg_toplevel_unset_maximized,
+    .set_fullscreen = xdg_toplevel_set_fullscreen,
+    .unset_fullscreen = xdg_toplevel_unset_fullscreen,
+    .set_minimized = xdg_toplevel_set_minimized};
+
+static void xdg_surface_destroy(void *user_data) {
+  printf("xdg_surface::destroy\n");
+}
+
+static void xdg_surface_get_toplevel(uint32_t id, void *user_data) {
+  WaylandServerClient *self = user_data;
+
+  printf("xdg_surface::get_toplevel %d\n", id);
+
+  xdg_toplevel_server_new(self, id, &xdg_toplevel_request_callbacks, self);
+}
+
+static void xdg_surface_get_popup(uint32_t id, uint32_t parent,
+                                  uint32_t positioner, void *user_data) {
+  printf("xdg_surface::get_popup\n");
+}
+
+static void xdg_surface_set_window_geometry(int32_t x, int32_t y, int32_t width,
+                                            int32_t height, void *user_data) {
+  printf("xdg_surface::set_window_geometry\n");
+}
+
+static void xdg_surface_ack_configure(uint32_t serial, void *user_data) {
+  printf("xdg_surface::ack_configure\n");
+}
+
+static XdgSurfaceServerRequestCallbacks xdg_surface_request_callbacks = {
+    .destroy = xdg_surface_destroy,
+    .get_toplevel = xdg_surface_get_toplevel,
+    .get_popup = xdg_surface_get_popup,
+    .set_window_geometry = xdg_surface_set_window_geometry,
+    .ack_configure = xdg_surface_ack_configure};
+
+static void wl_surface_destroy(void *user_data) {
+  printf("wl_surface::destroy\n");
+}
+
+static void wl_surface_attach(uint32_t buffer, int32_t x, int32_t y,
+                              void *user_data) {
+  printf("wl_surface::attach\n");
+}
+
+static void wl_surface_damage(int32_t x, int32_t y, int32_t width,
+                              int32_t height, void *user_data) {
+  printf("wl_surface::damage\n");
+}
+
+static void wl_surface_frame(uint32_t callback, void *user_data) {
+  printf("wl_surface::frame\n");
+}
+
+static void wl_surface_set_opaque_region(uint32_t region, void *user_data) {
+  printf("wl_surface::set_opaque_region\n");
+}
+
+static void wl_surface_set_input_region(uint32_t region, void *user_data) {
+  printf("wl_surface::set_input_region\n");
+}
+
+static void wl_surface_commit(void *user_data) {
+  printf("wl_surface::commit\n");
+}
+
+static void wl_surface_set_buffer_transform(int32_t transform,
+                                            void *user_data) {
+  printf("wl_surface::set_buffer_transform\n");
+}
+
+static void wl_surface_set_buffer_scale(int32_t scale, void *user_data) {
+  printf("wl_surface::set_buffer_scale\n");
+}
+
+static void wl_surface_damage_buffer(int32_t x, int32_t y, int32_t width,
+                                     int32_t height, void *user_data) {
+  printf("wl_surface::damage_buffer\n");
+}
+
+static void wl_surface_offset(int32_t x, int32_t y, void *user_data) {
+  printf("wl_surface::offset\n");
+}
+
+static WlSurfaceServerRequestCallbacks wl_surface_request_callbacks = {
+    .destroy = wl_surface_destroy,
+    .attach = wl_surface_attach,
+    .damage = wl_surface_damage,
+    .frame = wl_surface_frame,
+    .set_opaque_region = wl_surface_set_opaque_region,
+    .set_input_region = wl_surface_set_input_region,
+    .commit = wl_surface_commit,
+    .set_buffer_transform = wl_surface_set_buffer_transform,
+    .set_buffer_scale = wl_surface_set_buffer_scale,
+    .damage_buffer = wl_surface_damage_buffer,
+    .offset = wl_surface_offset};
+
 static void wl_compositor_create_surface(uint32_t id, void *user_data) {
+  WaylandServerClient *self = user_data;
+
   printf("wl_compositor::create_surface %d\n", id);
+
+  wl_surface_server_new(self, id, &wl_surface_request_callbacks, self);
 }
 
 static void wl_compositor_create_region(uint32_t id, void *user_data) {
@@ -75,7 +253,11 @@ static void xdg_wm_base_create_positioner(uint32_t id, void *user_data) {
 
 static void xdg_wm_base_get_xdg_surface(uint32_t id, uint32_t surface,
                                         void *user_data) {
+  WaylandServerClient *self = user_data;
+
   printf("xdg_wm_base::get_xdg_surface %d %d\n", id, surface);
+
+  xdg_surface_server_new(self, id, &xdg_surface_request_callbacks, self);
 }
 
 static void xdg_wm_base_pong(uint32_t serial, void *user_data) {
