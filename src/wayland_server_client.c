@@ -10,6 +10,7 @@
 #include "wl_data_device_manager_server.h"
 #include "wl_display_server.h"
 #include "wl_registry_server.h"
+#include "wl_shm_pool_server.h"
 #include "wl_shm_server.h"
 #include "wl_surface_server.h"
 #include "xdg_surface_server.h"
@@ -217,10 +218,35 @@ static WlCompositorServerRequestCallbacks wl_compositor_request_callbacks = {
     .create_surface = wl_compositor_create_surface,
     .create_region = wl_compositor_create_region};
 
+static void wl_shm_pool_create_buffer(uint32_t id, int32_t offset,
+                                      int32_t width, int32_t height,
+                                      int32_t stride, uint32_t format,
+                                      void *user_data) {
+  printf("wl_shm_pool::create_buffer\n");
+
+  // FIXME
+}
+
+static void wl_shm_pool_destroy(void *user_data) {
+  printf("wl_shm_pool::destroy\n");
+}
+
+static void wl_shm_pool_resize(int32_t size, void *user_data) {
+  printf("wl_shm_pool::resize %d\n", size);
+}
+
+static WlShmPoolServerRequestCallbacks wl_shm_pool_request_callbacks = {
+    .create_buffer = wl_shm_pool_create_buffer,
+    .destroy = wl_shm_pool_destroy,
+    .resize = wl_shm_pool_resize};
+
 static void wl_shm_create_pool(uint32_t id, int fd, int32_t size,
                                void *user_data) {
-  // FIXME
+  WaylandServerClient *self = user_data;
+
   printf("wl_shm::create_pool %d\n", id);
+
+  wl_shm_pool_server_new(self, id, &wl_shm_pool_request_callbacks, self);
 }
 
 static void wl_shm_release(void *user_data) { printf("wl_shm::release\n"); }
