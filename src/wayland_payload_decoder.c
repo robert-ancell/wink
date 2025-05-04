@@ -68,6 +68,24 @@ const char *wayland_payload_decoder_read_string(WaylandPayloadDecoder *self) {
   return value;
 }
 
+uint32_t wayland_payload_decoder_read_object(WaylandPayloadDecoder *self) {
+  return wayland_payload_decoder_read_uint(self);
+}
+
+uint32_t wayland_payload_decoder_read_new_id(WaylandPayloadDecoder *self) {
+  return wayland_payload_decoder_read_uint(self);
+}
+
+uint32_t *wayland_payload_decoder_read_array(WaylandPayloadDecoder *self) {
+  // FIXME
+  return NULL;
+}
+
+int wayland_payload_decoder_read_fd(WaylandPayloadDecoder *self) {
+  // FIXME
+  return -1;
+}
+
 bool wayland_payload_decoder_finish(WaylandPayloadDecoder *self) {
   if (self->offset != self->data_length) {
     return false;

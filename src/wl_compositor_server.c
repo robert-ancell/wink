@@ -9,13 +9,13 @@ struct _WlCompositorServer {
 
 static void wl_compositor_create_surface(WlCompositorServer *self,
                                          WaylandPayloadDecoder *decoder) {
-  uint32_t id;
+  uint32_t id = wayland_payload_decoder_read_new_id(decoder);
   self->request_callbacks->create_surface(id, self->user_data);
 }
 
 static void wl_compositor_create_region(WlCompositorServer *self,
                                         WaylandPayloadDecoder *decoder) {
-  uint32_t id;
+  uint32_t id = wayland_payload_decoder_read_new_id(decoder);
   self->request_callbacks->create_region(id, self->user_data);
 }
 

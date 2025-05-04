@@ -76,6 +76,7 @@ def type_to_native(type):
         "string": "const char *",
         "object": "uint32_t",
         "new_id": "uint32_t",
+        "array": "uint32_t*",
         "fd": "int",
     }[type]
 
@@ -140,7 +141,11 @@ for interface in interfaces:
         )
         args = []
         for arg in request.args:
-            source += "  %s %s;\n" % (type_to_native(arg.type), arg.name)
+            source += "  %s %s = wayland_payload_decoder_read_%s(decoder);\n" % (
+                type_to_native(arg.type),
+                arg.name,
+                arg.type,
+            )
             args.append("%s" % arg.name)
         args.append("self->user_data")
         source += "  self->request_callbacks->%s(%s);\n" % (

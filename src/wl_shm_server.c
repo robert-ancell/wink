@@ -9,9 +9,9 @@ struct _WlShmServer {
 
 static void wl_shm_create_pool(WlShmServer *self,
                                WaylandPayloadDecoder *decoder) {
-  uint32_t id;
-  int fd;
-  int32_t size;
+  uint32_t id = wayland_payload_decoder_read_new_id(decoder);
+  int fd = wayland_payload_decoder_read_fd(decoder);
+  int32_t size = wayland_payload_decoder_read_int(decoder);
   self->request_callbacks->create_pool(id, fd, size, self->user_data);
 }
 
