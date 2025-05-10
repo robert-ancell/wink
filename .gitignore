@@ -1,0 +1,7 @@
+*.o
+src/wink
+src/wl_*_client.[ch]
+src/wl_*_server.[ch]
+src/xdg_*_client.[ch]
+src/xdg_*_server.[ch]
+
