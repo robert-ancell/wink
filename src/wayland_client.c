@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 
 #include "wayland_client.h"
@@ -7,6 +8,7 @@
 #include "socket_client.h"
 #include "wl_display_client.h"
 #include "wl_registry_client.h"
+#include "wl_shm_client.h"
 
 typedef struct {
   uint32_t id;
@@ -22,19 +24,39 @@ struct _WaylandClient {
   size_t objects_length;
   WlDisplayClient *display;
   WlRegistryClient *registry;
+  WlShmClient *shm;
 };
 
-static void error_cb(uint32_t object_id, uint32_t code, const char *message,
-                     void *user_data) {}
+static uint32_t get_next_id(WaylandClient *self) { return self->next_id++; }
 
-static void delete_id_cb(uint32_t id, void *user_data) {}
+static void format_cb(uint32_t format, void *user_data) {
+  printf("SHM Format %d\n", format);
+}
+
+static WlShmClientEventCallbacks shm_callbacks = {.format = format_cb};
+
+static void error_cb(uint32_t object_id, uint32_t code, const char *message,
+                     void *user_data) {
+  printf("E: %d %d %s\n", object_id, code, message);
+}
+
+static void delete_id_cb(uint32_t id, void *user_data) {
+  printf("DELETE %d\n", id);
+}
 
 static WlDisplayClientEventCallbacks display_callbacks = {
     .error = error_cb, .delete_id = delete_id_cb};
 
 static void global_cb(uint32_t name, const char *interface, uint32_t version,
                       void *user_data) {
+  WaylandClient *self = user_data;
+
   printf("%s %d\n", interface, version);
+  if (strcmp(interface, "wl_shm") == 0) {
+    uint32_t shm_id = get_next_id(self);
+    self->shm = wl_shm_client_new(self, shm_id, &shm_callbacks, self);
+    wl_registry_client_bind(self->registry, name, interface, version, shm_id);
+  }
 }
 
 static void global_remove_cb(uint32_t name, void *user_data) {}
@@ -103,8 +125,6 @@ static void read_cb(void *user_data) {
   }
 }
 
-static uint32_t get_next_id(WaylandClient *self) { return self->next_id++; }
-
 WaylandClient *wayland_client_new(MainLoop *loop) {
   WaylandClient *self = malloc(sizeof(WaylandClient));
   self->loop = main_loop_ref(loop);
@@ -114,6 +134,7 @@ WaylandClient *wayland_client_new(MainLoop *loop) {
   self->objects_length = 0;
   self->display = NULL;
   self->registry = NULL;
+  self->shm = NULL;
   return self;
 }
 

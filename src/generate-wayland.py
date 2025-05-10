@@ -106,6 +106,15 @@ def type_to_native(type):
     }[type]
 
 
+def arg_to_native(arg):
+    args = []
+    if arg.type == "new_id" and arg.interface is None:
+        args.append("const char *%s_interface" % arg.name)
+        args.append("uint32_t %s_version" % arg.name)
+    args.append("%s %s" % (type_to_native(arg.type), arg.name))
+    return args
+
+
 def generate_server(interface):
     header_path = interface.name + "_server.h"
     source_path = interface.name + "_server.c"
@@ -125,10 +134,7 @@ def generate_server(interface):
     for request in interface.requests:
         args = []
         for arg in request.args:
-            if arg.type == "new_id" and arg.interface is None:
-                args.append("const char *%s_interface" % arg.name)
-                args.append("uint32_t %s_version" % arg.name)
-            args.append("%s %s" % (type_to_native(arg.type), arg.name))
+            args.extend(arg_to_native(arg))
         args.append("void *user_data")
         header += "  void (*%s)(%s);\n" % (request.name, ",".join(args))
     header += "} %s;\n" % callbacks_struct
@@ -147,7 +153,7 @@ def generate_server(interface):
         header += "\n"
         args = ["%s *self" % class_name]
         for arg in event.args:
-            args.append("%s %s" % (type_to_native(arg.type), arg.name))
+            args.extend(arg_to_native(arg))
         header += "void %s_%s(%s);\n" % (prefix, event.name, ",".join(args))
 
     source = ""
@@ -246,10 +252,19 @@ def generate_server(interface):
         source += "\n"
         args = ["%s *self" % class_name]
         for arg in event.args:
-            args.append("%s %s" % (type_to_native(arg.type), arg.name))
+            args.extend(arg_to_native(arg))
         source += "void %s_%s(%s) {\n" % (prefix, event.name, ",".join(args))
         source += "  WaylandPayloadEncoder *encoder = wayland_payload_encoder_new();\n"
         for arg in event.args:
+            if arg.type == "new_id" and arg.interface is None:
+                source += (
+                    "  wayland_payload_encoder_write_string(encoder, %s_interface);\n"
+                    % arg.name
+                )
+                source += (
+                    "  wayland_payload_encoder_write_uint(encoder, %s_version);\n"
+                    % arg.name
+                )
             source += "  wayland_payload_encoder_write_%s(encoder, %s);\n" % (
                 arg.type,
                 arg.name,
@@ -291,10 +306,7 @@ def generate_client(interface):
     for event in interface.events:
         args = []
         for arg in event.args:
-            if arg.type == "new_id" and arg.interface is None:
-                args.append("const char *%s_interface" % arg.name)
-                args.append("uint32_t %s_version" % arg.name)
-            args.append("%s %s" % (type_to_native(arg.type), arg.name))
+            args.extend(arg_to_native(arg))
         args.append("void *user_data")
         header += "  void (*%s)(%s);\n" % (event.name, ",".join(args))
     header += "} %s;\n" % callbacks_struct
@@ -313,7 +325,7 @@ def generate_client(interface):
         header += "\n"
         args = ["%s *self" % class_name]
         for arg in request.args:
-            args.append("%s %s" % (type_to_native(arg.type), arg.name))
+            args.extend(arg_to_native(arg))
         header += "void %s_%s(%s);\n" % (prefix, request.name, ",".join(args))
 
     source = ""
@@ -411,10 +423,19 @@ def generate_client(interface):
         source += "\n"
         args = ["%s *self" % class_name]
         for arg in request.args:
-            args.append("%s %s" % (type_to_native(arg.type), arg.name))
+            args.extend(arg_to_native(arg))
         source += "void %s_%s(%s) {\n" % (prefix, request.name, ",".join(args))
         source += "  WaylandPayloadEncoder *encoder = wayland_payload_encoder_new();\n"
         for arg in request.args:
+            if arg.type == "new_id" and arg.interface is None:
+                source += (
+                    "  wayland_payload_encoder_write_string(encoder, %s_interface);\n"
+                    % arg.name
+                )
+                source += (
+                    "  wayland_payload_encoder_write_uint(encoder, %s_version);\n"
+                    % arg.name
+                )
             source += "  wayland_payload_encoder_write_%s(encoder, %s);\n" % (
                 arg.type,
                 arg.name,
