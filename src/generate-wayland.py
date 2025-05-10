@@ -32,10 +32,16 @@ class Arg:
         self.interface = interface
 
 
-if len(sys.argv) < 2:
-    print("Usage generate-wayland.py [protocol.xml]")
+if len(sys.argv) < 3:
+    print("Usage generate-wayland.py [protocol.xml] [server|client] [interfaces]")
     sys.exit(1)
 protocol_path = sys.argv[1]
+generate_type = sys.argv[2]
+interface_names = sys.argv[3:]
+
+if not generate_type in ("server", "client"):
+    print("Only server and client output supported")
+    sys.exit(1)
 
 interfaces = []
 tree = xml.etree.ElementTree.parse(protocol_path)
@@ -100,10 +106,9 @@ def type_to_native(type):
     }[type]
 
 
-for interface in interfaces:
+def generate_server(interface):
     header_path = interface.name + "_server.h"
     source_path = interface.name + "_server.c"
-
     class_name = snake_to_camel(interface.name) + "Server"
     prefix = "%s_server" % interface.name
     callbacks_struct = "%sRequestCallbacks" % class_name
@@ -264,3 +269,102 @@ for interface in interfaces:
     open(header_path, "w").write(header)
     open(source_path, "w").write(source)
     os.system("clang-format -i %s %s" % (header_path, source_path))
+    print("Generated %s %s" % (source_path, header_path))
+
+
+def generate_client(interface):
+    header_path = interface.name + "_client.h"
+    source_path = interface.name + "_client.c"
+    class_name = snake_to_camel(interface.name) + "Client"
+    prefix = "%s_client" % interface.name
+    callbacks_struct = "%sEventCallbacks" % class_name
+
+    header = ""
+    header += "#pragma once\n"
+    header += "\n"
+    header += "#include <stdint.h>\n"
+    header += "\n"
+    header += '#include "wayland_payload_encoder.h"\n'
+    header += '#include "wayland_server_client.h"\n'
+    header += "\n"
+    header += "typedef struct {\n"
+    for event in interface.events:
+        args = []
+        for arg in event.args:
+            if arg.type == "new_id" and arg.interface is None:
+                args.append("const char *%s_interface" % arg.name)
+                args.append("uint32_t %s_version" % arg.name)
+            args.append("%s %s" % (type_to_native(arg.type), arg.name))
+        args.append("void *user_data")
+        header += "  void (*%s)(%s);\n" % (event.name, ",".join(args))
+    header += "} %s;\n" % callbacks_struct
+    header += "\n"
+    header += "typedef struct _%s %s;\n" % (class_name, class_name)
+    header += "\n"
+    header += (
+        "%s *%s_new(WaylandClient *client, uint32_t id, const %s *event_callbacks, void *user_data);\n"
+        % (class_name, prefix, callbacks_struct)
+    )
+    header += "\n"
+    header += "%s *%s_ref(%s *self);\n" % (class_name, prefix, class_name)
+    header += "\n"
+    header += "void %s_unref(%s *self);\n" % (prefix, class_name)
+    for request in interface.requests:
+        header += "\n"
+        args = ["%s *self" % class_name]
+        for arg in request.args:
+            args.append("%s %s" % (type_to_native(arg.type), arg.name))
+        header += "void %s_%s(%s);\n" % (prefix, request.name, ",".join(args))
+
+    source = ""
+    source += "#include <stdlib.h>\n"
+    source += "\n"
+    source += '#include "%s"\n' % header_path
+    source += "\n"
+    source += "struct _%s {\n" % class_name
+    source += "  WaylandClient *client;\n"
+    source += "  uint32_t id;\n"
+    source += "  const %s *event_callbacks;\n" % callbacks_struct
+    source += "  void *user_data;\n"
+    source += "};\n"
+    source += "\n"
+    source += (
+        "%s *%s_new(WaylandClient *client, uint32_t id, const %s *event_callbacks, void *user_data) {\n"
+        % (class_name, prefix, callbacks_struct)
+    )
+    source += "  %s *self = malloc(sizeof(%s));\n" % (class_name, class_name)
+    source += "  self->client = client;\n"
+    source += "  self->id = id;\n"
+    source += "  self->event_callbacks = event_callbacks;\n"
+    source += "  self->user_data = user_data;\n"
+    source += "\n"
+    source += (
+        "  wayland_client_add_object(client, id, %s_event_cb, self);\n" % interface.name
+    )
+    source += "\n"
+    source += "  return self;\n"
+    source += "}\n"
+    source += "\n"
+    source += "%s *%s_ref(%s *self) {\n" % (class_name, prefix, class_name)
+    source += "  // FIXME\n"
+    source += "  return self;\n"
+    source += "}\n"
+    source += "\n"
+    source += "void %s_unref(%s *self) {\n" % (prefix, class_name)
+    source += "  // FIXME\n"
+    source += "}\n"
+
+    open(header_path, "w").write(header)
+    open(source_path, "w").write(source)
+    os.system("clang-format -i %s %s" % (header_path, source_path))
+    print("Generated %s %s" % (source_path, header_path))
+
+
+for interface in interfaces:
+    if len(interface_names) > 0 and interface.name not in interface_names:
+        continue
+
+    if generate_type == "server":
+        generate_server(interface)
+    elif generate_type == "client":
+        generate_client(interface)
