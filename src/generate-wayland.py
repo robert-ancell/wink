@@ -313,10 +313,10 @@ def generate_client(interface):
     header += "\n"
     header += "typedef struct _%s %s;\n" % (class_name, class_name)
     header += "\n"
-    header += (
-        "%s *%s_new(WaylandClient *client, uint32_t id, const %s *event_callbacks, void *user_data);\n"
-        % (class_name, prefix, callbacks_struct)
-    )
+    args = ["WaylandClient *client", "uint32_t id"]
+    if len(interface.events) > 0:
+        args.extend(["const %s *event_callbacks" % callbacks_struct, "void *user_data"])
+    header += "%s *%s_new(%s);\n" % (class_name, prefix, ",".join(args))
     header += "\n"
     header += "%s *%s_ref(%s *self);\n" % (class_name, prefix, class_name)
     header += "\n"
@@ -336,8 +336,9 @@ def generate_client(interface):
     source += "struct _%s {\n" % class_name
     source += "  WaylandClient *client;\n"
     source += "  uint32_t id;\n"
-    source += "  const %s *event_callbacks;\n" % callbacks_struct
-    source += "  void *user_data;\n"
+    if len(interface.events) > 0:
+        source += "  const %s *event_callbacks;\n" % callbacks_struct
+        source += "  void *user_data;\n"
     source += "};\n"
     for event in interface.events:
         source += "\n"
@@ -394,15 +395,16 @@ def generate_client(interface):
         source += "  }\n"
     source += "}\n"
     source += "\n"
-    source += (
-        "%s *%s_new(WaylandClient *client, uint32_t id, const %s *event_callbacks, void *user_data) {\n"
-        % (class_name, prefix, callbacks_struct)
-    )
+    args = ["WaylandClient *client", "uint32_t id"]
+    if len(interface.events) > 0:
+        args.extend(["const %s *event_callbacks" % callbacks_struct, "void *user_data"])
+    source += "%s *%s_new(%s) {\n" % (class_name, prefix, ",".join(args))
     source += "  %s *self = malloc(sizeof(%s));\n" % (class_name, class_name)
     source += "  self->client = client;\n"
     source += "  self->id = id;\n"
-    source += "  self->event_callbacks = event_callbacks;\n"
-    source += "  self->user_data = user_data;\n"
+    if len(interface.events) > 0:
+        source += "  self->event_callbacks = event_callbacks;\n"
+        source += "  self->user_data = user_data;\n"
     source += "\n"
     source += (
         "  wayland_client_add_object(client, id, %s_event_cb, self);\n" % interface.name

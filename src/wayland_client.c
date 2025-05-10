@@ -6,9 +6,13 @@
 #include "wayland_client.h"
 
 #include "socket_client.h"
+#include "wl_compositor_client.h"
 #include "wl_display_client.h"
 #include "wl_registry_client.h"
 #include "wl_shm_client.h"
+#include "xdg_surface_client.h"
+#include "xdg_toplevel_client.h"
+#include "xdg_wm_base_client.h"
 
 typedef struct {
   uint32_t id;
@@ -24,10 +28,19 @@ struct _WaylandClient {
   size_t objects_length;
   WlDisplayClient *display;
   WlRegistryClient *registry;
+  WlCompositorClient *compositor;
   WlShmClient *shm;
+  XdgWmBaseClient *wm_base;
 };
 
 static uint32_t get_next_id(WaylandClient *self) { return self->next_id++; }
+
+static void ping_cb(uint32_t serial, void *user_data) {
+  WaylandClient *self = user_data;
+  xdg_wm_base_client_pong(self->wm_base, serial);
+}
+
+static XdgWmBaseClientEventCallbacks wm_base_callbacks = {.ping = ping_cb};
 
 static void format_cb(uint32_t format, void *user_data) {
   printf("SHM Format %d\n", format);
@@ -52,10 +65,21 @@ static void global_cb(uint32_t name, const char *interface, uint32_t version,
   WaylandClient *self = user_data;
 
   printf("%s %d\n", interface, version);
-  if (strcmp(interface, "wl_shm") == 0) {
+  if (strcmp(interface, "wl_compositor") == 0) {
+    uint32_t compositor_id = get_next_id(self);
+    self->compositor = wl_compositor_client_new(self, compositor_id);
+    wl_registry_client_bind(self->registry, name, interface, version,
+                            compositor_id);
+  } else if (strcmp(interface, "wl_shm") == 0) {
     uint32_t shm_id = get_next_id(self);
     self->shm = wl_shm_client_new(self, shm_id, &shm_callbacks, self);
     wl_registry_client_bind(self->registry, name, interface, version, shm_id);
+  } else if (strcmp(interface, "xdg_wm_base") == 0) {
+    uint32_t wm_base_id = get_next_id(self);
+    self->wm_base =
+        xdg_wm_base_client_new(self, wm_base_id, &wm_base_callbacks, self);
+    wl_registry_client_bind(self->registry, name, interface, version,
+                            wm_base_id);
   }
 }
 
@@ -134,7 +158,9 @@ WaylandClient *wayland_client_new(MainLoop *loop) {
   self->objects_length = 0;
   self->display = NULL;
   self->registry = NULL;
+  self->compositor = NULL;
   self->shm = NULL;
+  self->wm_base = NULL;
   return self;
 }
 

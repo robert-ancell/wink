@@ -11,11 +11,13 @@ WAYLAND_SERVER_INTERFACES = wl_buffer \
 XDG_SERVER_INTERFACES = xdg_surface \
                         xdg_toplevel \
                         xdg_wm_base
-WAYLAND_CLIENT_INTERFACES = wl_display \
+WAYLAND_CLIENT_INTERFACES = wl_compositor \
+                            wl_display \
                             wl_registry \
                             wl_shm
 XDG_CLIENT_INTERFACES = xdg_surface \
-                        xdg_toplevel
+                        xdg_toplevel \
+                        xdg_wm_base
 WAYLAND_SERVER_SOURCES = $(WAYLAND_SERVER_INTERFACES:%=%_server.c) $(WAYLAND_SERVER_INTERFACES:%=%_server.h)
 XDG_SERVER_SOURCES = $(XDG_SERVER_INTERFACES:%=%_server.c) $(XDG_SERVER_INTERFACES:%=%_server.h)
 WAYLAND_CLIENT_SOURCES = $(WAYLAND_CLIENT_INTERFACES:%=%_client.c) $(WAYLAND_CLIENT_INTERFACES:%=%_client.h)
