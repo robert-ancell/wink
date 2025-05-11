@@ -6,11 +6,12 @@ import xml.etree.ElementTree
 
 
 class Interface:
-    def __init__(self, name, version, requests, events):
+    def __init__(self, name, version, requests, events, enums):
         self.name = name
         self.version = version
         self.requests = requests
         self.events = events
+        self.enums = enums
 
 
 class Request:
@@ -26,10 +27,23 @@ class Event:
 
 
 class Arg:
-    def __init__(self, name, type, interface):
+    def __init__(self, name, type, enum, interface):
         self.name = name
         self.type = type
+        self.enum = enum
         self.interface = interface
+
+
+class Enum:
+    def __init__(self, name, entries):
+        self.name = name
+        self.entries = entries
+
+
+class EnumEntry:
+    def __init__(self, name, value):
+        self.name = name
+        self.value = value
 
 
 if len(sys.argv) < 3:
@@ -55,6 +69,7 @@ for interface in tree.findall("interface"):
                 Arg(
                     arg.attrib["name"],
                     arg.attrib["type"],
+                    arg.attrib.get("enum", None),
                     arg.attrib.get("interface", None),
                 )
             )
@@ -67,13 +82,29 @@ for interface in tree.findall("interface"):
                 Arg(
                     arg.attrib["name"],
                     arg.attrib["type"],
+                    arg.attrib.get("enum", None),
                     arg.attrib.get("interface", None),
                 )
             )
         events.append(Event(event.attrib["name"], args))
+    enums = []
+    for enum in interface.findall("enum"):
+        entries = []
+        for entry in enum.findall("entry"):
+            entries.append(
+                EnumEntry(
+                    entry.attrib["name"],
+                    entry.attrib["value"],
+                )
+            )
+        enums.append(Enum(enum.attrib["name"], entries))
     interfaces.append(
         Interface(
-            interface.attrib["name"], interface.attrib["version"], requests, events
+            interface.attrib["name"],
+            interface.attrib["version"],
+            requests,
+            events,
+            enums,
         )
     )
 
@@ -128,6 +159,18 @@ def generate_server(interface):
     header += "#include <stdint.h>\n"
     header += "\n"
     header += '#include "wayland_server_client.h"\n'
+    for enum in interface.enums:
+        enum_prefix = "%s_server_%s" % (interface.name, enum.name)
+        enum_name = snake_to_camel(enum_prefix)
+        header += "\n"
+        header += "typedef enum {\n"
+        for entry in enum.entries:
+            header += "  %s_%s = %s," % (
+                enum_prefix,
+                entry.name,
+                entry.value,
+            )
+        header += "} %s;\n" % enum_name
     if len(interface.requests) > 0:
         header += "\n"
         header += "typedef struct {\n"
@@ -306,6 +349,18 @@ def generate_client(interface):
     header += "#include <stdint.h>\n"
     header += "\n"
     header += '#include "wayland_client.h"\n'
+    for enum in interface.enums:
+        enum_prefix = "%s_client_%s" % (interface.name, enum.name)
+        enum_name = snake_to_camel(enum_prefix)
+        header += "\n"
+        header += "typedef enum {\n"
+        for entry in enum.entries:
+            header += "  %s_%s = %s," % (
+                enum_prefix,
+                entry.name,
+                entry.value,
+            )
+        header += "} %s;\n" % enum_name
     if len(interface.events) > 0:
         header += "\n"
         header += "typedef struct {\n"
