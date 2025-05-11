@@ -27,6 +27,7 @@ SOURCES = main.c \
           socket_client.c \
           socket_server.c \
           wayland_client.c \
+          wayland_message_decoder.c \
           wayland_payload_decoder.c \
           wayland_payload_encoder.c \
           wayland_server.c \

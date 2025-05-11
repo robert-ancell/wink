@@ -5,6 +5,8 @@
 #include <unistd.h>
 
 #include "wayland_server_client.h"
+
+#include "wayland_message_decoder.h"
 #include "wl_buffer_server.h"
 #include "wl_callback_server.h"
 #include "wl_compositor_server.h"
@@ -28,6 +30,7 @@ typedef struct {
 
 struct _WaylandServerClient {
   int fd;
+  WaylandMessageDecoder *message_decoder;
   WaylandObject *objects;
   size_t objects_length;
 };
@@ -378,8 +381,10 @@ static WaylandObject *find_object(WaylandServerClient *self, uint32_t id) {
   return NULL;
 }
 
-static void decode_request(WaylandServerClient *self, uint32_t id,
-                           uint16_t code, WaylandPayloadDecoder *decoder) {
+static void message_cb(uint32_t id, uint16_t code,
+                       WaylandPayloadDecoder *payload, void *user_data) {
+  WaylandServerClient *self = user_data;
+
   WaylandObject *o = find_object(self, id);
   if (o == NULL) {
     // FIXME: Generate error
@@ -387,7 +392,7 @@ static void decode_request(WaylandServerClient *self, uint32_t id,
     return;
   }
 
-  o->request_callback(code, decoder, o->user_data);
+  o->request_callback(code, payload, o->user_data);
 }
 
 static void read_cb(void *user_data) {
@@ -399,35 +404,13 @@ static void read_cb(void *user_data) {
     return;
   }
 
-  size_t offset = 0;
-  while (offset + 8 <= data_length) {
-    uint32_t *header = (uint32_t *)(data + offset);
-    uint32_t length_code = header[1];
-    uint16_t length = length_code >> 16;
-
-    if (length < 8) {
-      // FIXME: Invalid
-      break;
-    }
-    if (offset + length > data_length) {
-      break;
-    }
-
-    uint32_t id = header[0];
-    uint16_t code = header[1] & 0xffff;
-    uint8_t *payload = data + offset + 8;
-    WaylandPayloadDecoder *decoder =
-        wayland_payload_decoder_new(payload, length - 8);
-    decode_request(self, id, code, decoder);
-    wayland_payload_decoder_unref(decoder);
-
-    offset += length;
-  }
+  wayland_message_decoder_write(self->message_decoder, data, data_length);
 }
 
 WaylandServerClient *wayland_server_client_new(MainLoop *loop, int fd) {
   WaylandServerClient *self = malloc(sizeof(WaylandServerClient));
   self->fd = fd;
+  self->message_decoder = wayland_message_decoder_new(message_cb, self);
   self->objects = NULL;
   self->objects_length = 0;
 

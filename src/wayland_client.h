@@ -9,8 +9,11 @@
 typedef struct _WaylandClient WaylandClient;
 
 typedef void (*WaylandClientEventCallback)(uint16_t code,
-                                           WaylandPayloadDecoder *decoder,
+                                           WaylandPayloadDecoder *payload,
                                            void *user_data);
+
+typedef void (*WaylandClientSyncDoneCallback)(uint32_t callback_data,
+                                              void *user_data);
 
 WaylandClient *wayland_client_new(MainLoop *loop);
 
