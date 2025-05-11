@@ -127,7 +127,6 @@ def generate_server(interface):
     header += "\n"
     header += "#include <stdint.h>\n"
     header += "\n"
-    header += '#include "wayland_payload_decoder.h"\n'
     header += '#include "wayland_server_client.h"\n'
     if len(interface.requests) > 0:
         header += "\n"
@@ -144,11 +143,10 @@ def generate_server(interface):
     header += "\n"
     args = ["WaylandServerClient *client", "uint32_t id"]
     if len(interface.requests) > 0:
-        args.extend(["const %s *request_callbacks" % callbacks_struct, "void *user_data"])
-    header += (
-        "%s *%s_new(%s);\n"
-        % (class_name, prefix, ",".join(args))
-    )
+        args.extend(
+            ["const %s *request_callbacks" % callbacks_struct, "void *user_data"]
+        )
+    header += "%s *%s_new(%s);\n" % (class_name, prefix, ",".join(args))
     header += "\n"
     header += "%s *%s_ref(%s *self);\n" % (class_name, prefix, class_name)
     header += "\n"
@@ -229,11 +227,10 @@ def generate_server(interface):
     source += "\n"
     args = ["WaylandServerClient *client", "uint32_t id"]
     if len(interface.requests) > 0:
-        args.extend(["const %s *request_callbacks" % callbacks_struct, "void *user_data"])
-    source += (
-        "%s *%s_new(%s) {\n"
-        % (class_name, prefix, ",".join(args))
-    )
+        args.extend(
+            ["const %s *request_callbacks" % callbacks_struct, "void *user_data"]
+        )
+    source += "%s *%s_new(%s) {\n" % (class_name, prefix, ",".join(args))
     source += "  %s *self = malloc(sizeof(%s));\n" % (class_name, class_name)
     source += "  self->client = client;\n"
     source += "  self->id = id;\n"
@@ -308,7 +305,6 @@ def generate_client(interface):
     header += "\n"
     header += "#include <stdint.h>\n"
     header += "\n"
-    header += '#include "wayland_payload_encoder.h"\n'
     header += '#include "wayland_client.h"\n'
     if len(interface.events) > 0:
         header += "\n"
@@ -422,7 +418,8 @@ def generate_client(interface):
         source += "  self->user_data = user_data;\n"
     source += "\n"
     source += (
-        "  wayland_client_add_object(client, id, %s_event_cb, delete_cb, %s_ref(self));\n" % (interface.name, prefix)
+        "  wayland_client_add_object(client, id, %s_event_cb, delete_cb, %s_ref(self));\n"
+        % (interface.name, prefix)
     )
     source += "\n"
     source += "  return self;\n"
