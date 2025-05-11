@@ -20,6 +20,7 @@
 typedef struct {
   uint32_t id;
   WaylandClientEventCallback event_callback;
+  WaylandClientDeleteCallback delete_callback;
   void *user_data;
 } WaylandObject;
 
@@ -38,6 +39,18 @@ struct _WaylandClient {
 };
 
 static uint32_t get_next_id(WaylandClient *self) { return self->next_id++; }
+
+static WaylandObject *find_object(WaylandClient *self, uint32_t id) {
+  // FIXME: Binary search
+  for (size_t i = 0; i < self->objects_length; i++) {
+    WaylandObject *o = &self->objects[i];
+    if (o->id == id) {
+      return o;
+    }
+  }
+
+  return NULL;
+}
 
 static void ping_cb(uint32_t serial, void *user_data) {
   WaylandClient *self = user_data;
@@ -66,7 +79,25 @@ static void error_cb(uint32_t object_id, uint32_t code, const char *message,
 }
 
 static void delete_id_cb(uint32_t id, void *user_data) {
-  printf("DELETE %d\n", id);
+  WaylandClient *self = user_data;
+
+  WaylandObject *o = find_object(self, id);
+  if (o == NULL) {
+    return;
+  }
+
+  o->delete_callback(o->user_data);
+
+  // FIXME: Binary search and reuse lookup from above.
+  for (size_t i = 0; i < self->objects_length; i++) {
+    if (o->id == id) {
+      i++;
+      while (i < self->objects_length) {
+        self->objects[i - 1] = self->objects[i];
+      }
+      self->objects_length--;
+    }
+  }
 }
 
 static WlDisplayClientEventCallbacks display_callbacks = {
@@ -99,18 +130,6 @@ static void global_remove_cb(uint32_t name, void *user_data) {}
 
 static WlRegistryClientEventCallbacks registry_callbacks = {
     .global = global_cb, .global_remove = global_remove_cb};
-
-static WaylandObject *find_object(WaylandClient *self, uint32_t id) {
-  // FIXME: Binary search
-  for (size_t i = 0; i < self->objects_length; i++) {
-    WaylandObject *o = &self->objects[i];
-    if (o->id == id) {
-      return o;
-    }
-  }
-
-  return NULL;
-}
 
 static void message_cb(uint32_t id, uint16_t code,
                        WaylandPayloadDecoder *payload, void *user_data) {
@@ -198,6 +217,7 @@ bool wayland_client_connect(WaylandClient *self, const char *display) {
 
 void wayland_client_add_object(WaylandClient *self, uint32_t id,
                                WaylandClientEventCallback event_callback,
+                               WaylandClientDeleteCallback delete_callback,
                                void *user_data) {
   if (find_object(self, id) != NULL) {
     // FIXME: error
@@ -210,6 +230,7 @@ void wayland_client_add_object(WaylandClient *self, uint32_t id,
   WaylandObject *o = &self->objects[self->objects_length - 1];
   o->id = id;
   o->event_callback = event_callback;
+  o->delete_callback = delete_callback;
   o->user_data = user_data;
 }
 

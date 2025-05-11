@@ -395,6 +395,11 @@ def generate_client(interface):
         source += "  }\n"
     source += "}\n"
     source += "\n"
+    source += "static void delete_cb(void *user_data) {\n"
+    source += "    %s *self = user_data;\n" % class_name
+    source += "    %s_unref(self);\n" % prefix
+    source += "}\n"
+    source += "\n"
     args = ["WaylandClient *client", "uint32_t id"]
     if len(interface.events) > 0:
         args.extend(["const %s *event_callbacks" % callbacks_struct, "void *user_data"])
@@ -407,7 +412,7 @@ def generate_client(interface):
         source += "  self->user_data = user_data;\n"
     source += "\n"
     source += (
-        "  wayland_client_add_object(client, id, %s_event_cb, self);\n" % interface.name
+        "  wayland_client_add_object(client, id, %s_event_cb, delete_cb, %s_ref(self));\n" % (interface.name, prefix)
     )
     source += "\n"
     source += "  return self;\n"
