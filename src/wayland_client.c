@@ -59,9 +59,7 @@ static void ping_cb(uint32_t serial, void *user_data) {
 
 static XdgWmBaseClientEventCallbacks wm_base_callbacks = {.ping = ping_cb};
 
-static void format_cb(uint32_t format, void *user_data) {
-  printf("SHM Format %d\n", format);
-}
+static void format_cb(uint32_t format, void *user_data) {}
 
 static WlShmClientEventCallbacks shm_callbacks = {.format = format_cb};
 
@@ -107,7 +105,6 @@ static void global_cb(uint32_t name, const char *interface, uint32_t version,
                       void *user_data) {
   WaylandClient *self = user_data;
 
-  printf("%s %d\n", interface, version);
   if (strcmp(interface, "wl_compositor") == 0) {
     uint32_t compositor_id = get_next_id(self);
     self->compositor = wl_compositor_client_new(self, compositor_id);
