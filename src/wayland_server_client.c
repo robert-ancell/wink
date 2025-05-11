@@ -309,8 +309,6 @@ static XdgWmBaseServerRequestCallbacks xdg_wm_base_request_callbacks = {
     .get_xdg_surface = xdg_wm_base_get_xdg_surface,
     .pong = xdg_wm_base_pong};
 
-static WlCallbackServerRequestCallbacks wl_callback_request_callbacks = {};
-
 static void wl_registry_bind(uint32_t name, const char *id_interface,
                              uint32_t id_version, uint32_t id,
                              void *user_data) {
@@ -347,8 +345,7 @@ static void wl_display_sync(uint32_t callback, void *user_data) {
 
   printf("wl_display::sync %d\n", callback);
 
-  WlCallbackServer *object = wl_callback_server_new(
-      self, callback, &wl_callback_request_callbacks, self);
+  WlCallbackServer *object = wl_callback_server_new(self, callback);
 
   wl_callback_server_done(object, 0);
 }

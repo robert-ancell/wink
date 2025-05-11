@@ -129,21 +129,25 @@ def generate_server(interface):
     header += "\n"
     header += '#include "wayland_payload_decoder.h"\n'
     header += '#include "wayland_server_client.h"\n'
-    header += "\n"
-    header += "typedef struct {\n"
-    for request in interface.requests:
-        args = []
-        for arg in request.args:
-            args.extend(arg_to_native(arg))
-        args.append("void *user_data")
-        header += "  void (*%s)(%s);\n" % (request.name, ",".join(args))
-    header += "} %s;\n" % callbacks_struct
+    if len(interface.requests) > 0:
+        header += "\n"
+        header += "typedef struct {\n"
+        for request in interface.requests:
+            args = []
+            for arg in request.args:
+                args.extend(arg_to_native(arg))
+            args.append("void *user_data")
+            header += "  void (*%s)(%s);\n" % (request.name, ",".join(args))
+        header += "} %s;\n" % callbacks_struct
     header += "\n"
     header += "typedef struct _%s %s;\n" % (class_name, class_name)
     header += "\n"
+    args = ["WaylandServerClient *client", "uint32_t id"]
+    if len(interface.requests) > 0:
+        args.extend(["const %s *request_callbacks" % callbacks_struct, "void *user_data"])
     header += (
-        "%s *%s_new(WaylandServerClient *client, uint32_t id, const %s *request_callbacks, void *user_data);\n"
-        % (class_name, prefix, callbacks_struct)
+        "%s *%s_new(%s);\n"
+        % (class_name, prefix, ",".join(args))
     )
     header += "\n"
     header += "%s *%s_ref(%s *self);\n" % (class_name, prefix, class_name)
@@ -164,8 +168,9 @@ def generate_server(interface):
     source += "struct _%s {\n" % class_name
     source += "  WaylandServerClient *client;\n"
     source += "  uint32_t id;\n"
-    source += "  const %s *request_callbacks;\n" % callbacks_struct
-    source += "  void *user_data;\n"
+    if len(interface.requests) > 0:
+        source += "  const %s *request_callbacks;\n" % callbacks_struct
+        source += "  void *user_data;\n"
     source += "};\n"
     for request in interface.requests:
         source += "\n"
@@ -222,15 +227,19 @@ def generate_server(interface):
         source += "  }\n"
     source += "}\n"
     source += "\n"
+    args = ["WaylandServerClient *client", "uint32_t id"]
+    if len(interface.requests) > 0:
+        args.extend(["const %s *request_callbacks" % callbacks_struct, "void *user_data"])
     source += (
-        "%s *%s_new(WaylandServerClient *client, uint32_t id, const %s *request_callbacks, void *user_data) {\n"
-        % (class_name, prefix, callbacks_struct)
+        "%s *%s_new(%s) {\n"
+        % (class_name, prefix, ",".join(args))
     )
     source += "  %s *self = malloc(sizeof(%s));\n" % (class_name, class_name)
     source += "  self->client = client;\n"
     source += "  self->id = id;\n"
-    source += "  self->request_callbacks = request_callbacks;\n"
-    source += "  self->user_data = user_data;\n"
+    if len(interface.requests) > 0:
+        source += "  self->request_callbacks = request_callbacks;\n"
+        source += "  self->user_data = user_data;\n"
     source += "\n"
     source += (
         "  wayland_server_client_add_object(client, id, %s_request_cb, self);\n"
@@ -301,15 +310,16 @@ def generate_client(interface):
     header += "\n"
     header += '#include "wayland_payload_encoder.h"\n'
     header += '#include "wayland_client.h"\n'
-    header += "\n"
-    header += "typedef struct {\n"
-    for event in interface.events:
-        args = []
-        for arg in event.args:
-            args.extend(arg_to_native(arg))
-        args.append("void *user_data")
-        header += "  void (*%s)(%s);\n" % (event.name, ",".join(args))
-    header += "} %s;\n" % callbacks_struct
+    if len(interface.events) > 0:
+        header += "\n"
+        header += "typedef struct {\n"
+        for event in interface.events:
+            args = []
+            for arg in event.args:
+                args.extend(arg_to_native(arg))
+            args.append("void *user_data")
+            header += "  void (*%s)(%s);\n" % (event.name, ",".join(args))
+        header += "} %s;\n" % callbacks_struct
     header += "\n"
     header += "typedef struct _%s %s;\n" % (class_name, class_name)
     header += "\n"
