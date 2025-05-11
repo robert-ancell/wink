@@ -29,3 +29,7 @@ void wayland_client_add_object(WaylandClient *self, uint32_t id,
 
 void wayland_client_send_request(WaylandClient *self, uint32_t id,
                                  uint16_t code, WaylandPayloadEncoder *encoder);
+
+void wayland_client_sync(WaylandClient *self,
+                         WaylandClientSyncDoneCallback callback,
+                         void *user_data);

@@ -11,7 +11,8 @@ WAYLAND_SERVER_INTERFACES = wl_buffer \
 XDG_SERVER_INTERFACES = xdg_surface \
                         xdg_toplevel \
                         xdg_wm_base
-WAYLAND_CLIENT_INTERFACES = wl_compositor \
+WAYLAND_CLIENT_INTERFACES = wl_callback \
+                            wl_compositor \
                             wl_display \
                             wl_registry \
                             wl_shm

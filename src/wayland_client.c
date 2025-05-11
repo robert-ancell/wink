@@ -8,6 +8,7 @@
 
 #include "socket_client.h"
 #include "wayland_message_decoder.h"
+#include "wl_callback_client.h"
 #include "wl_compositor_client.h"
 #include "wl_display_client.h"
 #include "wl_registry_client.h"
@@ -50,6 +51,14 @@ static void format_cb(uint32_t format, void *user_data) {
 }
 
 static WlShmClientEventCallbacks shm_callbacks = {.format = format_cb};
+
+static void callback_done_cb(uint32_t callback_data, void *user_data) {
+  // FIXME: Call callback provided in wayland_client_sync
+  printf("DONE\n");
+}
+
+static WlCallbackClientEventCallbacks callback_callbacks = {
+    .done = callback_done_cb};
 
 static void error_cb(uint32_t object_id, uint32_t code, const char *message,
                      void *user_data) {
@@ -217,4 +226,12 @@ void wayland_client_send_request(WaylandClient *self, uint32_t id,
   assert(write(fd, header, 8) == 8);
   assert(write(fd, wayland_payload_encoder_get_data(encoder), payload_length) ==
          payload_length);
+}
+
+void wayland_client_sync(WaylandClient *self,
+                         WaylandClientSyncDoneCallback callback,
+                         void *user_data) {
+  uint32_t callback_id = get_next_id(self);
+  wl_callback_client_new(self, callback_id, &callback_callbacks, self);
+  wl_display_client_sync(self->display, callback_id);
 }
