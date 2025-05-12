@@ -1,7 +1,10 @@
+*~
 *.o
 src/wink
 src/wl_*_client.[ch]
 src/wl_*_server.[ch]
 src/xdg_*_client.[ch]
 src/xdg_*_server.[ch]
+src/zwp_*_client.[ch]
+src/zwp_*_server.[ch]
 
