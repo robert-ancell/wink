@@ -3,12 +3,15 @@
 #include "main_loop.h"
 #include "wayland_client.h"
 #include "wayland_server.h"
+#include "wayland_toplevel.h"
 
 int main(int argc, char **argv) {
   MainLoop *loop = main_loop_new();
 
   WaylandClient *client = wayland_client_new(loop);
   wayland_client_connect(client, NULL);
+
+  // WaylandToplevel *toplevel = wayland_toplevel_new(client);
 
   WaylandServer *server = wayland_server_new(loop);
   if (!wayland_server_run(server, "wayland-99")) {

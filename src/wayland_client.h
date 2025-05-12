@@ -9,6 +9,7 @@ typedef struct _WaylandClient WaylandClient;
 #include "wayland_payload_encoder.h"
 #include "wl_compositor_client.h"
 #include "wl_shm_client.h"
+#include "xdg_wm_base_client.h"
 
 typedef void (*WaylandClientEventCallback)(uint16_t code,
                                            WaylandPayloadDecoder *payload,
@@ -42,3 +43,5 @@ void wayland_client_sync(WaylandClient *self,
 WlCompositorClient *wayland_client_get_compositor(WaylandClient *self);
 
 WlShmClient *wayland_client_get_shm(WaylandClient *self);
+
+XdgWmBaseClient *wayland_client_get_wm_base(WaylandClient *self);

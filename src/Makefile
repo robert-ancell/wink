@@ -20,7 +20,8 @@ WAYLAND_CLIENT_INTERFACES = wl_buffer \
                             wl_display \
                             wl_registry \
                             wl_shm_pool \
-                            wl_shm
+                            wl_shm \
+                            wl_surface
 XDG_SHELL_CLIENT_INTERFACES = xdg_surface \
                               xdg_toplevel \
                               xdg_wm_base
@@ -42,7 +43,8 @@ SOURCES = main.c \
           wayland_payload_decoder.c \
           wayland_payload_encoder.c \
           wayland_server.c \
-          wayland_server_client.c
+          wayland_server_client.c \
+          wayland_toplevel.c
 GENERATED_SOURCES = $(WAYLAND_SERVER_SOURCES) \
                     $(XDG_SHELL_SERVER_SOURCES) \
                     $(LINUX_DMABUF_SERVER_SOURCES) \

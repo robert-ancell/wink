@@ -251,3 +251,7 @@ WlCompositorClient *wayland_client_get_compositor(WaylandClient *self) {
 }
 
 WlShmClient *wayland_client_get_shm(WaylandClient *self) { return self->shm; }
+
+XdgWmBaseClient *wayland_client_get_wm_base(WaylandClient *self) {
+  return self->wm_base;
+}
