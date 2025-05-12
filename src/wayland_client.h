@@ -1,3 +1,5 @@
+typedef struct _WaylandClient WaylandClient;
+
 #pragma once
 
 #include <stdbool.h>
@@ -5,8 +7,8 @@
 #include "main_loop.h"
 #include "wayland_payload_decoder.h"
 #include "wayland_payload_encoder.h"
-
-typedef struct _WaylandClient WaylandClient;
+#include "wl_compositor_client.h"
+#include "wl_shm_client.h"
 
 typedef void (*WaylandClientEventCallback)(uint16_t code,
                                            WaylandPayloadDecoder *payload,
@@ -36,3 +38,7 @@ void wayland_client_send_request(WaylandClient *self, uint32_t id,
 void wayland_client_sync(WaylandClient *self,
                          WaylandClientSyncDoneCallback callback,
                          void *user_data);
+
+WlCompositorClient *wayland_client_get_compositor(WaylandClient *self);
+
+WlShmClient *wayland_client_get_shm(WaylandClient *self);

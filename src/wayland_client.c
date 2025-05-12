@@ -253,3 +253,9 @@ void wayland_client_sync(WaylandClient *self,
   wl_callback_client_new(self, callback_id, &callback_callbacks, self);
   wl_display_client_sync(self->display, callback_id);
 }
+
+WlCompositorClient *wayland_client_get_compositor(WaylandClient *self) {
+  return self->compositor;
+}
+
+WlShmClient *wayland_client_get_shm(WaylandClient *self) { return self->shm; }

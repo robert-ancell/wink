@@ -154,6 +154,8 @@ def generate_server(interface):
     callbacks_struct = "%sRequestCallbacks" % class_name
 
     header = ""
+    header += "typedef struct _%s %s;\n" % (class_name, class_name)
+    header += "\n"
     header += "#pragma once\n"
     header += "\n"
     header += "#include <stdint.h>\n"
@@ -181,8 +183,6 @@ def generate_server(interface):
             args.append("void *user_data")
             header += "  void (*%s)(%s);\n" % (request.name, ",".join(args))
         header += "} %s;\n" % callbacks_struct
-    header += "\n"
-    header += "typedef struct _%s %s;\n" % (class_name, class_name)
     header += "\n"
     args = ["WaylandServerClient *client", "uint32_t id"]
     if len(interface.requests) > 0:
@@ -344,6 +344,8 @@ def generate_client(interface):
     callbacks_struct = "%sEventCallbacks" % class_name
 
     header = ""
+    header += "typedef struct _%s %s;\n" % (class_name, class_name)
+    header += "\n"
     header += "#pragma once\n"
     header += "\n"
     header += "#include <stdint.h>\n"
@@ -371,8 +373,6 @@ def generate_client(interface):
             args.append("void *user_data")
             header += "  void (*%s)(%s);\n" % (event.name, ",".join(args))
         header += "} %s;\n" % callbacks_struct
-    header += "\n"
-    header += "typedef struct _%s %s;\n" % (class_name, class_name)
     header += "\n"
     args = ["WaylandClient *client", "uint32_t id"]
     if len(interface.events) > 0:
