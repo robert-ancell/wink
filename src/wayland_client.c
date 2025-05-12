@@ -106,20 +106,17 @@ static void global_cb(uint32_t name, const char *interface, uint32_t version,
   WaylandClient *self = user_data;
 
   if (strcmp(interface, "wl_compositor") == 0) {
-    uint32_t compositor_id = get_next_id(self);
-    self->compositor = wl_compositor_client_new(self, compositor_id);
+    self->compositor = wl_compositor_client_new(self);
     wl_registry_client_bind(self->registry, name, interface, version,
-                            compositor_id);
+                            wl_compositor_client_get_id(self->compositor));
   } else if (strcmp(interface, "wl_shm") == 0) {
-    uint32_t shm_id = get_next_id(self);
-    self->shm = wl_shm_client_new(self, shm_id, &shm_callbacks, self);
-    wl_registry_client_bind(self->registry, name, interface, version, shm_id);
-  } else if (strcmp(interface, "xdg_wm_base") == 0) {
-    uint32_t wm_base_id = get_next_id(self);
-    self->wm_base =
-        xdg_wm_base_client_new(self, wm_base_id, &wm_base_callbacks, self);
+    self->shm = wl_shm_client_new(self, &shm_callbacks, self);
     wl_registry_client_bind(self->registry, name, interface, version,
-                            wm_base_id);
+                            wl_shm_client_get_id(self->shm));
+  } else if (strcmp(interface, "xdg_wm_base") == 0) {
+    self->wm_base = xdg_wm_base_client_new(self, &wm_base_callbacks, self);
+    wl_registry_client_bind(self->registry, name, interface, version,
+                            xdg_wm_base_client_get_id(self->wm_base));
   }
 }
 
@@ -202,33 +199,28 @@ bool wayland_client_connect(WaylandClient *self, const char *display) {
   main_loop_add_fd(self->loop, socket_client_get_fd(self->socket), read_cb,
                    self);
 
-  self->display =
-      wl_display_client_new(self, get_next_id(self), &display_callbacks, self);
-  uint32_t registry_id = get_next_id(self);
-  self->registry =
-      wl_registry_client_new(self, registry_id, &registry_callbacks, self);
-  wl_display_client_get_registry(self->display, registry_id);
+  self->display = wl_display_client_new(self, &display_callbacks, self);
+  self->registry = wl_registry_client_new(self, &registry_callbacks, self);
+  wl_display_client_get_registry(self->display,
+                                 wl_registry_client_get_id(self->registry));
 
   return true;
 }
 
-void wayland_client_add_object(WaylandClient *self, uint32_t id,
-                               WaylandClientEventCallback event_callback,
-                               WaylandClientDeleteCallback delete_callback,
-                               void *user_data) {
-  if (find_object(self, id) != NULL) {
-    // FIXME: error
-    return;
-  }
-
+uint32_t wayland_client_add_object(WaylandClient *self,
+                                   WaylandClientEventCallback event_callback,
+                                   WaylandClientDeleteCallback delete_callback,
+                                   void *user_data) {
   self->objects_length++;
   self->objects =
       realloc(self->objects, sizeof(WaylandObject) * self->objects_length);
   WaylandObject *o = &self->objects[self->objects_length - 1];
-  o->id = id;
+  o->id = get_next_id(self);
   o->event_callback = event_callback;
   o->delete_callback = delete_callback;
   o->user_data = user_data;
+
+  return o->id;
 }
 
 void wayland_client_send_request(WaylandClient *self, uint32_t id,
@@ -247,11 +239,11 @@ void wayland_client_send_request(WaylandClient *self, uint32_t id,
 }
 
 void wayland_client_sync(WaylandClient *self,
-                         WaylandClientSyncDoneCallback callback,
+                         WaylandClientSyncDoneCallback done_callback,
                          void *user_data) {
-  uint32_t callback_id = get_next_id(self);
-  wl_callback_client_new(self, callback_id, &callback_callbacks, self);
-  wl_display_client_sync(self->display, callback_id);
+  WlCallbackClient *callback =
+      wl_callback_client_new(self, &callback_callbacks, self);
+  wl_display_client_sync(self->display, wl_callback_client_get_id(callback));
 }
 
 WlCompositorClient *wayland_client_get_compositor(WaylandClient *self) {

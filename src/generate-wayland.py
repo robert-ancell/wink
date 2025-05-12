@@ -374,7 +374,7 @@ def generate_client(interface):
             header += "  void (*%s)(%s);\n" % (event.name, ",".join(args))
         header += "} %s;\n" % callbacks_struct
     header += "\n"
-    args = ["WaylandClient *client", "uint32_t id"]
+    args = ["WaylandClient *client"]
     if len(interface.events) > 0:
         args.extend(["const %s *event_callbacks" % callbacks_struct, "void *user_data"])
     header += "%s *%s_new(%s);\n" % (class_name, prefix, ",".join(args))
@@ -382,6 +382,8 @@ def generate_client(interface):
     header += "%s *%s_ref(%s *self);\n" % (class_name, prefix, class_name)
     header += "\n"
     header += "void %s_unref(%s *self);\n" % (prefix, class_name)
+    header += "\n"
+    header += "uint32_t %s_get_id(%s *self);\n" % (prefix, class_name)
     for request in interface.requests:
         header += "\n"
         args = ["%s *self" % class_name]
@@ -461,19 +463,18 @@ def generate_client(interface):
     source += "    %s_unref(self);\n" % prefix
     source += "}\n"
     source += "\n"
-    args = ["WaylandClient *client", "uint32_t id"]
+    args = ["WaylandClient *client"]
     if len(interface.events) > 0:
         args.extend(["const %s *event_callbacks" % callbacks_struct, "void *user_data"])
     source += "%s *%s_new(%s) {\n" % (class_name, prefix, ",".join(args))
     source += "  %s *self = malloc(sizeof(%s));\n" % (class_name, class_name)
     source += "  self->client = client;\n"
-    source += "  self->id = id;\n"
     if len(interface.events) > 0:
         source += "  self->event_callbacks = event_callbacks;\n"
         source += "  self->user_data = user_data;\n"
     source += "\n"
     source += (
-        "  wayland_client_add_object(client, id, %s_event_cb, delete_cb, %s_ref(self));\n"
+        "  self->id = wayland_client_add_object(client, %s_event_cb, delete_cb, %s_ref(self));\n"
         % (interface.name, prefix)
     )
     source += "\n"
@@ -487,6 +488,10 @@ def generate_client(interface):
     source += "\n"
     source += "void %s_unref(%s *self) {\n" % (prefix, class_name)
     source += "  // FIXME\n"
+    source += "}\n"
+    source += "\n"
+    source += "uint32_t %s_get_id(%s *self) {\n" % (prefix, class_name)
+    source += "  return self->id;\n"
     source += "}\n"
     for code, request in enumerate(interface.requests):
         source += "\n"
