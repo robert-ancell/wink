@@ -1,0 +1,27 @@
+name: Formatting
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  check-formatting:
+    runs-on: ubuntu-24.04
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify C formatting
+        run: |
+          passed=true
+          for file in src/*.[ch] do clang-format $file > $file.formatted ; echo $file ; diff $file $file.formatted ; if [ $? != 0 ]; then passed=false ; fi ; rm $file.formatted ; done
+          if [ $passed = false ]; then exit 1; fi
+
+      - name: Verify Python formatting
+        run: |
+          sudo apt-get update
+          sudo apt-get install black
+          black --check --diff src/generate-wayland.py
+
