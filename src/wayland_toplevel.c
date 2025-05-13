@@ -21,19 +21,19 @@ static WlSurfaceClientEventCallbacks surface_callbacks = {};
 WaylandToplevel *wayland_toplevel_new(WaylandClient *client) {
   WaylandToplevel *self = malloc(sizeof(WaylandToplevel));
 
-  self->surface = wl_surface_client_new(client, &surface_callbacks, self);
+  self->surface = wl_surface_client_new(client, &surface_callbacks, self, NULL);
   wl_compositor_client_create_surface(wayland_client_get_compositor(client),
                                       wl_surface_client_get_id(self->surface));
 
   self->xdg_surface =
-      xdg_surface_client_new(client, &xdg_surface_callbacks, self);
+      xdg_surface_client_new(client, &xdg_surface_callbacks, self, NULL);
   xdg_wm_base_client_get_xdg_surface(
       wayland_client_get_wm_base(client),
       xdg_surface_client_get_id(self->xdg_surface),
       wl_surface_client_get_id(self->surface));
 
   self->xdg_toplevel =
-      xdg_toplevel_client_new(client, &xdg_toplevel_callbacks, self);
+      xdg_toplevel_client_new(client, &xdg_toplevel_callbacks, self, NULL);
   xdg_surface_client_get_toplevel(
       self->xdg_surface, xdg_toplevel_client_get_id(self->xdg_toplevel));
 

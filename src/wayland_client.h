@@ -30,19 +30,20 @@ void wayland_client_unref(WaylandClient *self);
 
 bool wayland_client_connect(WaylandClient *self, const char *display,
                             WaylandClientConnectedCallback connected_callback,
-                            void *user_data);
+                            void *user_data, void (*user_data_unref)(void *));
 
 uint32_t wayland_client_add_object(WaylandClient *self,
                                    WaylandClientEventCallback event_callback,
                                    WaylandClientDeleteCallback delete_callback,
-                                   void *user_data);
+                                   void *user_data,
+                                   void (*user_data_unref)(void *));
 
 void wayland_client_send_request(WaylandClient *self, uint32_t id,
                                  uint16_t code, WaylandPayloadEncoder *encoder);
 
 void wayland_client_sync(WaylandClient *self,
                          WaylandClientSyncDoneCallback done_callback,
-                         void *user_data);
+                         void *user_data, void (*user_data_unref)(void *));
 
 WlCompositorClient *wayland_client_get_compositor(WaylandClient *self);
 

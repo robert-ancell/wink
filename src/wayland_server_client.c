@@ -121,7 +121,8 @@ static void xdg_surface_get_toplevel(uint32_t id, void *user_data) {
 
   printf("xdg_surface::get_toplevel %d\n", id);
 
-  xdg_toplevel_server_new(self, id, &xdg_toplevel_request_callbacks, self);
+  xdg_toplevel_server_new(self, id, &xdg_toplevel_request_callbacks, self,
+                          NULL);
 }
 
 static void xdg_surface_get_popup(uint32_t id, uint32_t parent,
@@ -211,7 +212,7 @@ static void wl_compositor_create_surface(uint32_t id, void *user_data) {
 
   printf("wl_compositor::create_surface %d\n", id);
 
-  wl_surface_server_new(self, id, &wl_surface_request_callbacks, self);
+  wl_surface_server_new(self, id, &wl_surface_request_callbacks, self, NULL);
 }
 
 static void wl_compositor_create_region(uint32_t id, void *user_data) {
@@ -237,7 +238,7 @@ static void wl_shm_pool_create_buffer(uint32_t id, int32_t offset,
 
   printf("wl_shm_pool::create_buffer\n");
 
-  wl_buffer_server_new(self, id, &wl_buffer_request_callbacks, self);
+  wl_buffer_server_new(self, id, &wl_buffer_request_callbacks, self, NULL);
 }
 
 static void wl_shm_pool_destroy(void *user_data) {
@@ -259,7 +260,7 @@ static void wl_shm_create_pool(uint32_t id, int fd, int32_t size,
 
   printf("wl_shm::create_pool %d\n", id);
 
-  wl_shm_pool_server_new(self, id, &wl_shm_pool_request_callbacks, self);
+  wl_shm_pool_server_new(self, id, &wl_shm_pool_request_callbacks, self, NULL);
 }
 
 static void wl_shm_release(void *user_data) { printf("wl_shm::release\n"); }
@@ -296,7 +297,7 @@ static void xdg_wm_base_get_xdg_surface(uint32_t id, uint32_t surface,
 
   printf("xdg_wm_base::get_xdg_surface %d %d\n", id, surface);
 
-  xdg_surface_server_new(self, id, &xdg_surface_request_callbacks, self);
+  xdg_surface_server_new(self, id, &xdg_surface_request_callbacks, self, NULL);
 }
 
 static void xdg_wm_base_pong(uint32_t serial, void *user_data) {
@@ -319,20 +320,22 @@ static void wl_registry_bind(uint32_t name, const char *id_interface,
   switch (name) {
   case 1:
     // FIXME: Store object
-    wl_compositor_server_new(self, id, &wl_compositor_request_callbacks, self);
+    wl_compositor_server_new(self, id, &wl_compositor_request_callbacks, self,
+                             NULL);
     break;
   case 2:
     // FIXME: Store object
-    wl_shm_server_new(self, id, &wl_shm_request_callbacks, self);
+    wl_shm_server_new(self, id, &wl_shm_request_callbacks, self, NULL);
     break;
   case 3:
     // FIXME: Store object
     wl_data_device_manager_server_new(
-        self, id, &wl_data_device_manager_request_callbacks, self);
+        self, id, &wl_data_device_manager_request_callbacks, self, NULL);
     break;
   case 4:
     // FIXME: Store object
-    xdg_wm_base_server_new(self, id, &xdg_wm_base_request_callbacks, self);
+    xdg_wm_base_server_new(self, id, &xdg_wm_base_request_callbacks, self,
+                           NULL);
     break;
   }
 }
@@ -355,8 +358,8 @@ static void wl_display_get_registry(uint32_t id, void *user_data) {
 
   printf("wl_display::get_registry %d\n", id);
 
-  WlRegistryServer *registry =
-      wl_registry_server_new(self, id, &wl_registry_request_callbacks, self);
+  WlRegistryServer *registry = wl_registry_server_new(
+      self, id, &wl_registry_request_callbacks, self, NULL);
   wl_registry_server_global(registry, 1, "wl_compositor", 6);
   wl_registry_server_global(registry, 2, "wl_shm", 2);
   wl_registry_server_global(registry, 3, "wl_data_device_manager", 3);
@@ -414,7 +417,7 @@ WaylandServerClient *wayland_server_client_new(MainLoop *loop, int fd) {
   main_loop_add_fd(loop, fd, read_cb, self);
 
   wl_display_server_new(self, WL_DISPLAY_ID, &wl_display_request_callbacks,
-                        self);
+                        self, NULL);
 
   return self;
 }

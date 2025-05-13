@@ -22,6 +22,7 @@ typedef struct {
   WaylandClientEventCallback event_callback;
   WaylandClientDeleteCallback delete_callback;
   void *user_data;
+  void (*user_data_unref)(void *);
 } WaylandObject;
 
 struct _WaylandClient {
@@ -41,11 +42,13 @@ struct _WaylandClient {
 typedef struct {
   WaylandClientSyncDoneCallback done_callback;
   void *user_data;
+  void (*user_data_unref)(void *);
 } CallbackData;
 
 typedef struct {
   WaylandClientConnectedCallback connected_callback;
   void *user_data;
+  void (*user_data_unref)(void *);
 } ConnectedData;
 
 static uint32_t get_next_id(WaylandClient *self) { return self->next_id++; }
@@ -94,7 +97,9 @@ static void delete_id_cb(uint32_t id, void *user_data) {
     return;
   }
 
-  o->delete_callback(o->user_data);
+  if (o->delete_callback) {
+    o->delete_callback(o->user_data);
+  }
 
   // FIXME: Binary search and reuse lookup from above.
   for (size_t i = 0; i < self->objects_length; i++) {
@@ -106,6 +111,10 @@ static void delete_id_cb(uint32_t id, void *user_data) {
       self->objects_length--;
     }
   }
+  if (o->user_data_unref) {
+    o->user_data_unref(o->user_data);
+  }
+  free(o);
 }
 
 static WlDisplayClientEventCallbacks display_callbacks = {
@@ -120,11 +129,12 @@ static void global_cb(uint32_t name, const char *interface, uint32_t version,
     wl_registry_client_bind(self->registry, name, interface, version,
                             wl_compositor_client_get_id(self->compositor));
   } else if (strcmp(interface, "wl_shm") == 0) {
-    self->shm = wl_shm_client_new(self, &shm_callbacks, self);
+    self->shm = wl_shm_client_new(self, &shm_callbacks, self, NULL);
     wl_registry_client_bind(self->registry, name, interface, version,
                             wl_shm_client_get_id(self->shm));
   } else if (strcmp(interface, "xdg_wm_base") == 0) {
-    self->wm_base = xdg_wm_base_client_new(self, &wm_base_callbacks, self);
+    self->wm_base =
+        xdg_wm_base_client_new(self, &wm_base_callbacks, self, NULL);
     wl_registry_client_bind(self->registry, name, interface, version,
                             xdg_wm_base_client_get_id(self->wm_base));
   }
@@ -164,6 +174,9 @@ static void read_cb(void *user_data) {
 static void registry_done_cb(uint32_t callback_data, void *user_data) {
   ConnectedData *data = user_data;
   data->connected_callback(data->user_data);
+  if (data->user_data_unref) {
+    data->user_data_unref(data->user_data);
+  }
   free(data);
 }
 
@@ -194,7 +207,7 @@ void wayland_client_unref(WaylandClient *self) {
 
 bool wayland_client_connect(WaylandClient *self, const char *display,
                             WaylandClientConnectedCallback connected_callback,
-                            void *user_data) {
+                            void *user_data, void (*user_data_unref)(void *)) {
   if (display == NULL) {
     display = getenv("WAYLAND_DISPLAY");
   }
@@ -217,14 +230,16 @@ bool wayland_client_connect(WaylandClient *self, const char *display,
   main_loop_add_fd(self->loop, socket_client_get_fd(self->socket), read_cb,
                    self);
 
-  self->display = wl_display_client_new(self, &display_callbacks, self);
-  self->registry = wl_registry_client_new(self, &registry_callbacks, self);
+  self->display = wl_display_client_new(self, &display_callbacks, self, NULL);
+  self->registry =
+      wl_registry_client_new(self, &registry_callbacks, self, NULL);
   wl_display_client_get_registry(self->display,
                                  wl_registry_client_get_id(self->registry));
   ConnectedData *data = malloc(sizeof(ConnectedData));
   data->connected_callback = connected_callback;
   data->user_data = user_data;
-  wayland_client_sync(self, registry_done_cb, data);
+  data->user_data_unref = user_data_unref;
+  wayland_client_sync(self, registry_done_cb, data, free);
 
   return true;
 }
@@ -232,7 +247,8 @@ bool wayland_client_connect(WaylandClient *self, const char *display,
 uint32_t wayland_client_add_object(WaylandClient *self,
                                    WaylandClientEventCallback event_callback,
                                    WaylandClientDeleteCallback delete_callback,
-                                   void *user_data) {
+                                   void *user_data,
+                                   void (*user_data_unref)(void *)) {
   self->objects_length++;
   self->objects =
       realloc(self->objects, sizeof(WaylandObject) * self->objects_length);
@@ -241,6 +257,7 @@ uint32_t wayland_client_add_object(WaylandClient *self,
   o->event_callback = event_callback;
   o->delete_callback = delete_callback;
   o->user_data = user_data;
+  o->user_data_unref = user_data_unref;
 
   return o->id;
 }
@@ -262,14 +279,14 @@ void wayland_client_send_request(WaylandClient *self, uint32_t id,
 
 void wayland_client_sync(WaylandClient *self,
                          WaylandClientSyncDoneCallback done_callback,
-                         void *user_data) {
+                         void *user_data, void (*user_data_unref)(void *)) {
 
   CallbackData *data = malloc(sizeof(CallbackData));
   data->done_callback = done_callback;
   data->user_data = user_data;
-  // FIXME: data leaks
+  data->user_data_unref = user_data_unref;
   WlCallbackClient *callback =
-      wl_callback_client_new(self, &callback_callbacks, data);
+      wl_callback_client_new(self, &callback_callbacks, data, free);
   wl_display_client_sync(self->display, wl_callback_client_get_id(callback));
 }
 
