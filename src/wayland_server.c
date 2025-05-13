@@ -20,7 +20,7 @@ static void connect_cb(int fd, void *user_data) {
 WaylandServer *wayland_server_new(MainLoop *loop) {
   WaylandServer *self = malloc(sizeof(WaylandServer));
   self->loop = main_loop_ref(loop);
-  self->socket = socket_server_new(loop, connect_cb, self);
+  self->socket = socket_server_new(loop, connect_cb, self, NULL);
   return self;
 }
 

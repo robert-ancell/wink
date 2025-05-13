@@ -228,7 +228,7 @@ bool wayland_client_connect(WaylandClient *self, const char *display,
   }
 
   main_loop_add_fd(self->loop, socket_client_get_fd(self->socket), read_cb,
-                   self);
+                   self, NULL);
 
   self->display = wl_display_client_new(self, &display_callbacks, self, NULL);
   self->registry =

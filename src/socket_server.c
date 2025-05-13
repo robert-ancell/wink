@@ -11,6 +11,7 @@ struct _SocketServer {
   int fd;
   SocketServerConnectCallback connect_callback;
   void *user_data;
+  void (*user_data_unref)(void *);
 };
 
 static void read_cb(void *user_data) {
@@ -29,12 +30,14 @@ static void read_cb(void *user_data) {
 
 SocketServer *socket_server_new(MainLoop *loop,
                                 SocketServerConnectCallback connect_callback,
-                                void *user_data) {
+                                void *user_data,
+                                void (*user_data_unref)(void *)) {
   SocketServer *self = malloc(sizeof(SocketServer));
   self->loop = main_loop_ref(loop);
   self->fd = -1;
   self->connect_callback = connect_callback;
   self->user_data = user_data;
+  self->user_data_unref = user_data_unref;
   return self;
 }
 
@@ -70,7 +73,7 @@ bool socket_server_run(SocketServer *self, const char *path) {
     return false;
   }
 
-  main_loop_add_fd(self->loop, self->fd, read_cb, self);
+  main_loop_add_fd(self->loop, self->fd, read_cb, self, NULL);
   if (listen(self->fd, 1024) == -1) {
     return false;
   }

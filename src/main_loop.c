@@ -7,6 +7,7 @@
 typedef struct {
   MainLoopReadCallback read_callback;
   void *user_data;
+  void (*user_data_unref)(void *);
 } FdCallbacks;
 
 struct _MainLoop {
@@ -32,7 +33,8 @@ void main_loop_unref(MainLoop *self) {
 }
 
 void main_loop_add_fd(MainLoop *self, int fd,
-                      MainLoopReadCallback read_callback, void *user_data) {
+                      MainLoopReadCallback read_callback, void *user_data,
+                      void (*user_data_unref)(void *)) {
   self->nfds++;
   self->fds = realloc(self->fds, sizeof(struct pollfd) * self->nfds);
   self->callbacks = realloc(self->callbacks, sizeof(FdCallbacks) * self->nfds);
@@ -48,6 +50,7 @@ void main_loop_add_fd(MainLoop *self, int fd,
   FdCallbacks *c = &self->callbacks[self->nfds - 1];
   c->read_callback = read_callback;
   c->user_data = user_data;
+  c->user_data_unref = user_data_unref;
 }
 
 void main_loop_run(MainLoop *self) {

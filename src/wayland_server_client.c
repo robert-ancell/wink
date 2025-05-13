@@ -414,7 +414,7 @@ WaylandServerClient *wayland_server_client_new(MainLoop *loop, int fd) {
   self->objects = NULL;
   self->objects_length = 0;
 
-  main_loop_add_fd(loop, fd, read_cb, self);
+  main_loop_add_fd(loop, fd, read_cb, self, NULL);
 
   wl_display_server_new(self, WL_DISPLAY_ID, &wl_display_request_callbacks,
                         self, NULL);
