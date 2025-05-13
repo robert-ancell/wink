@@ -9,6 +9,7 @@
 static void connected_cb(void *user_data) {
   WaylandClient *client = user_data;
   WaylandToplevel *toplevel = wayland_toplevel_new(client);
+  wayland_toplevel_set_title(toplevel, "Wink");
 }
 
 int main(int argc, char **argv) {

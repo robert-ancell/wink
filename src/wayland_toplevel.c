@@ -48,3 +48,15 @@ WaylandToplevel *wayland_toplevel_ref(WaylandToplevel *self) {
 void wayland_toplevel_unref(WaylandToplevel *self) {
   // FIXME
 }
+
+void wayland_toplevel_destroy(WaylandToplevel *self) {
+  xdg_toplevel_client_destroy(self->xdg_toplevel);
+}
+
+void wayland_toplevel_set_title(WaylandToplevel *self, const char *title) {
+  xdg_toplevel_client_set_title(self->xdg_toplevel, title);
+}
+
+void wayland_toplevel_set_app_id(WaylandToplevel *self, const char *app_id) {
+  xdg_toplevel_client_set_app_id(self->xdg_toplevel, app_id);
+}
