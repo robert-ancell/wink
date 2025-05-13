@@ -17,6 +17,8 @@ typedef void (*WaylandClientEventCallback)(uint16_t code,
 
 typedef void (*WaylandClientDeleteCallback)(void *user_data);
 
+typedef void (*WaylandClientConnectedCallback)(void *user_data);
+
 typedef void (*WaylandClientSyncDoneCallback)(uint32_t callback_data,
                                               void *user_data);
 
@@ -26,7 +28,9 @@ WaylandClient *wayland_client_ref(WaylandClient *self);
 
 void wayland_client_unref(WaylandClient *self);
 
-bool wayland_client_connect(WaylandClient *self, const char *display);
+bool wayland_client_connect(WaylandClient *self, const char *display,
+                            WaylandClientConnectedCallback connected_callback,
+                            void *user_data);
 
 uint32_t wayland_client_add_object(WaylandClient *self,
                                    WaylandClientEventCallback event_callback,

@@ -38,6 +38,16 @@ struct _WaylandClient {
   XdgWmBaseClient *wm_base;
 };
 
+typedef struct {
+  WaylandClientSyncDoneCallback done_callback;
+  void *user_data;
+} CallbackData;
+
+typedef struct {
+  WaylandClientConnectedCallback connected_callback;
+  void *user_data;
+} ConnectedData;
+
 static uint32_t get_next_id(WaylandClient *self) { return self->next_id++; }
 
 static WaylandObject *find_object(WaylandClient *self, uint32_t id) {
@@ -64,8 +74,8 @@ static void format_cb(uint32_t format, void *user_data) {}
 static WlShmClientEventCallbacks shm_callbacks = {.format = format_cb};
 
 static void callback_done_cb(uint32_t callback_data, void *user_data) {
-  // FIXME: Call callback provided in wayland_client_sync
-  printf("DONE\n");
+  CallbackData *data = user_data;
+  data->done_callback(callback_data, data->user_data);
 }
 
 static WlCallbackClientEventCallbacks callback_callbacks = {
@@ -151,6 +161,12 @@ static void read_cb(void *user_data) {
   wayland_message_decoder_write(self->message_decoder, data, data_length);
 }
 
+static void registry_done_cb(uint32_t callback_data, void *user_data) {
+  ConnectedData *data = user_data;
+  data->connected_callback(data->user_data);
+  free(data);
+}
+
 WaylandClient *wayland_client_new(MainLoop *loop) {
   WaylandClient *self = malloc(sizeof(WaylandClient));
   self->loop = main_loop_ref(loop);
@@ -176,7 +192,9 @@ void wayland_client_unref(WaylandClient *self) {
   // FIXME
 }
 
-bool wayland_client_connect(WaylandClient *self, const char *display) {
+bool wayland_client_connect(WaylandClient *self, const char *display,
+                            WaylandClientConnectedCallback connected_callback,
+                            void *user_data) {
   if (display == NULL) {
     display = getenv("WAYLAND_DISPLAY");
   }
@@ -203,6 +221,10 @@ bool wayland_client_connect(WaylandClient *self, const char *display) {
   self->registry = wl_registry_client_new(self, &registry_callbacks, self);
   wl_display_client_get_registry(self->display,
                                  wl_registry_client_get_id(self->registry));
+  ConnectedData *data = malloc(sizeof(ConnectedData));
+  data->connected_callback = connected_callback;
+  data->user_data = user_data;
+  wayland_client_sync(self, registry_done_cb, data);
 
   return true;
 }
@@ -241,8 +263,13 @@ void wayland_client_send_request(WaylandClient *self, uint32_t id,
 void wayland_client_sync(WaylandClient *self,
                          WaylandClientSyncDoneCallback done_callback,
                          void *user_data) {
+
+  CallbackData *data = malloc(sizeof(CallbackData));
+  data->done_callback = done_callback;
+  data->user_data = user_data;
+  // FIXME: data leaks
   WlCallbackClient *callback =
-      wl_callback_client_new(self, &callback_callbacks, self);
+      wl_callback_client_new(self, &callback_callbacks, data);
   wl_display_client_sync(self->display, wl_callback_client_get_id(callback));
 }
 
