@@ -210,7 +210,10 @@ def generate_server(interface):
     source += "\n"
     source += '#include "%s"\n' % header_path
     source += "\n"
+    header += '#include "ref.h"\n'
+    source += "\n"
     source += "struct _%s {\n" % class_name
+    source += "  ref_t ref;\n"
     source += "  WaylandServerClient *client;\n"
     source += "  uint32_t id;\n"
     if len(interface.requests) > 0:
@@ -284,6 +287,7 @@ def generate_server(interface):
         )
     source += "%s *%s_new(%s) {\n" % (class_name, prefix, ",".join(args))
     source += "  %s *self = malloc(sizeof(%s));\n" % (class_name, class_name)
+    source += "  ref_init(&self->ref);\n"
     source += "  self->client = client;\n"
     source += "  self->id = id;\n"
     if len(interface.requests) > 0:
@@ -300,12 +304,17 @@ def generate_server(interface):
     source += "}\n"
     source += "\n"
     source += "%s *%s_ref(%s *self) {\n" % (class_name, prefix, class_name)
-    source += "  // FIXME\n"
+    source += "  ref_inc(&self->ref);\n"
     source += "  return self;\n"
     source += "}\n"
     source += "\n"
     source += "void %s_unref(%s *self) {\n" % (prefix, class_name)
-    source += "  // FIXME\n"
+    source += "  if (ref_dec(&self->ref)) {\n"
+    if len(interface.requests) > 0:
+        source += "    if (self->user_data_unref) {\n"
+        source += "      self->user_data_unref(self->user_data);\n"
+        source += "    }\n"
+    source += "  }\n"
     source += "}\n"
     for code, event in enumerate(interface.events):
         source += "\n"
@@ -412,7 +421,10 @@ def generate_client(interface):
     source += "\n"
     source += '#include "%s"\n' % header_path
     source += "\n"
+    header += '#include "ref.h"\n'
+    source += "\n"
     source += "struct _%s {\n" % class_name
+    source += "  ref_t ref;\n"
     source += "  WaylandClient *client;\n"
     source += "  uint32_t id;\n"
     if len(interface.events) > 0:
@@ -491,6 +503,7 @@ def generate_client(interface):
         )
     source += "%s *%s_new(%s) {\n" % (class_name, prefix, ",".join(args))
     source += "  %s *self = malloc(sizeof(%s));\n" % (class_name, class_name)
+    source += "  ref_init(&self->ref);\n"
     source += "  self->client = client;\n"
     if len(interface.events) > 0:
         source += "  self->event_callbacks = event_callbacks;\n"
@@ -506,12 +519,17 @@ def generate_client(interface):
     source += "}\n"
     source += "\n"
     source += "%s *%s_ref(%s *self) {\n" % (class_name, prefix, class_name)
-    source += "  // FIXME\n"
+    source += "  ref_inc(&self->ref);\n"
     source += "  return self;\n"
     source += "}\n"
     source += "\n"
     source += "void %s_unref(%s *self) {\n" % (prefix, class_name)
-    source += "  // FIXME\n"
+    source += "  if (ref_dec(&self->ref)) {\n"
+    if len(interface.events) > 0:
+        source += "    if (self->user_data_unref) {\n"
+        source += "      self->user_data_unref(self->user_data);\n"
+        source += "    }\n"
+    source += "  }\n"
     source += "}\n"
     source += "\n"
     source += "uint32_t %s_get_id(%s *self) {\n" % (prefix, class_name)
