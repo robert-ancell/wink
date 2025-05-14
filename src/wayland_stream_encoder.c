@@ -3,28 +3,33 @@
 #include <string.h>
 #include <sys/socket.h>
 
+#include "ref.h"
 #include "wayland_stream_encoder.h"
 
 #define BUFFER_LENGTH 1024
 
 struct _WaylandStreamEncoder {
+  ref_t ref;
   int fd;
 };
 
 WaylandStreamEncoder *wayland_stream_encoder_new(int fd) {
   WaylandStreamEncoder *self = malloc(sizeof(WaylandStreamEncoder));
+  ref_init(&self->ref);
   self->fd = fd;
 
   return self;
 }
 
 WaylandStreamEncoder *wayland_stream_encoder_ref(WaylandStreamEncoder *self) {
-  // FIXME
+  ref_inc(&self->ref);
   return self;
 }
 
 void wayland_stream_encoder_unref(WaylandStreamEncoder *self) {
-  // FIXME
+  if (ref_dec(&self->ref)) {
+    free(self);
+  }
 }
 
 void wayland_stream_encoder_write(WaylandStreamEncoder *self,

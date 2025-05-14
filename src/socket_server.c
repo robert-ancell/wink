@@ -1,12 +1,15 @@
-#include "socket_server.h"
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <unistd.h>
 
+#include "socket_server.h"
+
+#include "ref.h"
+
 struct _SocketServer {
+  ref_t ref;
   MainLoop *loop;
   int fd;
   SocketServerConnectCallback connect_callback;
@@ -21,7 +24,7 @@ static void read_cb(void *user_data) {
   socklen_t address_len = sizeof(address);
   int fd = accept(self->fd, (struct sockaddr *)&address, &address_len);
   if (fd == -1) {
-    // FIXME
+    // FIXME: handle error
     return;
   }
 
@@ -33,6 +36,7 @@ SocketServer *socket_server_new(MainLoop *loop,
                                 void *user_data,
                                 void (*user_data_unref)(void *)) {
   SocketServer *self = malloc(sizeof(SocketServer));
+  ref_init(&self->ref);
   self->loop = main_loop_ref(loop);
   self->fd = -1;
   self->connect_callback = connect_callback;
@@ -42,12 +46,18 @@ SocketServer *socket_server_new(MainLoop *loop,
 }
 
 SocketServer *socket_server_ref(SocketServer *self) {
-  // FIXME
+  ref_inc(&self->ref);
   return self;
 }
 
 void socket_server_unref(SocketServer *self) {
-  // FIXME
+  if (ref_dec(&self->ref)) {
+    main_loop_unref(self->loop);
+    if (self->user_data_unref) {
+      self->user_data_unref(self->user_data);
+    }
+    free(self);
+  }
 }
 
 bool socket_server_run(SocketServer *self, const char *path) {

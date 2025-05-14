@@ -5,6 +5,7 @@
 
 #include "wayland_server_client.h"
 
+#include "ref.h"
 #include "wayland_stream_decoder.h"
 #include "wayland_stream_encoder.h"
 #include "wl_buffer_server.h"
@@ -26,9 +27,11 @@ typedef struct {
   uint32_t id;
   WaylandServerClientRequestCallback request_callback;
   void *user_data;
+  void (*user_data_unref)(void *);
 } WaylandObject;
 
 struct _WaylandServerClient {
+  ref_t ref;
   WaylandStreamDecoder *stream_decoder;
   WaylandStreamEncoder *stream_encoder;
   WaylandObject *objects;
@@ -397,7 +400,9 @@ static void message_cb(WaylandMessageDecoder *message, void *user_data) {
 
 WaylandServerClient *wayland_server_client_new(MainLoop *loop, int fd) {
   WaylandServerClient *self = malloc(sizeof(WaylandServerClient));
-  self->stream_decoder = wayland_stream_decoder_new(loop, fd, message_cb, self);
+  ref_init(&self->ref);
+  self->stream_decoder =
+      wayland_stream_decoder_new(loop, fd, message_cb, self, NULL);
   self->stream_encoder = wayland_stream_encoder_new(fd);
   self->objects = NULL;
   self->objects_length = 0;
@@ -409,17 +414,29 @@ WaylandServerClient *wayland_server_client_new(MainLoop *loop, int fd) {
 }
 
 WaylandServerClient *wayland_server_client_ref(WaylandServerClient *self) {
-  // FIXME
+  ref_inc(&self->ref);
   return self;
 }
 
 void wayland_server_client_unref(WaylandServerClient *self) {
-  // FIXME
+  if (ref_dec(&self->ref)) {
+    wayland_stream_decoder_unref(self->stream_decoder);
+    wayland_stream_encoder_unref(self->stream_encoder);
+    for (size_t i = 0; i < self->objects_length; i++) {
+      WaylandObject *o = &self->objects[i];
+      if (o->user_data_unref) {
+        o->user_data_unref(o->user_data);
+      }
+    }
+    free(self->objects);
+    free(self);
+  }
 }
 
 void wayland_server_client_add_object(
     WaylandServerClient *self, uint32_t id,
-    WaylandServerClientRequestCallback request_callback, void *user_data) {
+    WaylandServerClientRequestCallback request_callback, void *user_data,
+    void (*user_data_unref)(void *)) {
   if (find_object(self, id) != NULL) {
     // FIXME: error
     return;
@@ -432,6 +449,7 @@ void wayland_server_client_add_object(
   o->id = id;
   o->request_callback = request_callback;
   o->user_data = user_data;
+  o->user_data_unref = user_data_unref;
 }
 
 void wayland_server_client_send_message(WaylandServerClient *self,

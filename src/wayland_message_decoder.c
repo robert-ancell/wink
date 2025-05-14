@@ -103,12 +103,12 @@ uint32_t wayland_message_decoder_read_new_id(WaylandMessageDecoder *self) {
 }
 
 uint32_t *wayland_message_decoder_read_array(WaylandMessageDecoder *self) {
-  // FIXME
+  // FIXME: Implement array support
   return NULL;
 }
 
 int wayland_message_decoder_read_fd(WaylandMessageDecoder *self) {
-  // FIXME
+  // FIXME: Implement fd support
   return -1;
 }
 

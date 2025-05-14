@@ -13,7 +13,7 @@ typedef void (*WaylandStreamDecoderMessageCallback)(
 WaylandStreamDecoder *
 wayland_stream_decoder_new(MainLoop *loop, int fd,
                            WaylandStreamDecoderMessageCallback message_callback,
-                           void *user_data);
+                           void *user_data, void (*user_data_unref)(void *));
 
 WaylandStreamDecoder *wayland_stream_decoder_ref(WaylandStreamDecoder *self);
 

@@ -3,14 +3,17 @@
 #include <stdlib.h>
 #include <unistd.h>
 
+#include "ref.h"
 #include "wayland_stream_decoder.h"
 
 #define BUFFER_LENGTH 1024
 
 struct _WaylandStreamDecoder {
+  ref_t ref;
   int fd;
   WaylandStreamDecoderMessageCallback message_callback;
   void *user_data;
+  void (*user_data_unref)(void *);
   uint8_t buffer[BUFFER_LENGTH];
   size_t buffer_used;
 };
@@ -100,11 +103,13 @@ static void read_cb(void *user_data) {
 WaylandStreamDecoder *
 wayland_stream_decoder_new(MainLoop *loop, int fd,
                            WaylandStreamDecoderMessageCallback message_callback,
-                           void *user_data) {
+                           void *user_data, void (*user_data_unref)(void *)) {
   WaylandStreamDecoder *self = malloc(sizeof(WaylandStreamDecoder));
+  ref_init(&self->ref);
   self->fd = fd;
   self->message_callback = message_callback;
   self->user_data = user_data;
+  self->user_data_unref = user_data_unref;
   self->buffer_used = 0;
 
   main_loop_add_fd(loop, fd, read_cb, self, NULL);
@@ -113,10 +118,15 @@ wayland_stream_decoder_new(MainLoop *loop, int fd,
 }
 
 WaylandStreamDecoder *wayland_stream_decoder_ref(WaylandStreamDecoder *self) {
-  // FIXME
+  ref_inc(&self->ref);
   return self;
 }
 
 void wayland_stream_decoder_unref(WaylandStreamDecoder *self) {
-  // FIXME
+  if (ref_dec(&self->ref)) {
+    if (self->user_data_unref) {
+      self->user_data_unref(self->user_data);
+    }
+    free(self);
+  }
 }

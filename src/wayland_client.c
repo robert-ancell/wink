@@ -5,6 +5,7 @@
 
 #include "wayland_client.h"
 
+#include "ref.h"
 #include "socket_client.h"
 #include "wayland_stream_decoder.h"
 #include "wayland_stream_encoder.h"
@@ -26,6 +27,7 @@ typedef struct {
 } WaylandObject;
 
 struct _WaylandClient {
+  ref_t ref;
   MainLoop *loop;
   SocketClient *socket;
   WaylandStreamDecoder *stream_decoder;
@@ -171,6 +173,7 @@ static void registry_done_cb(uint32_t callback_data, void *user_data) {
 
 WaylandClient *wayland_client_new(MainLoop *loop) {
   WaylandClient *self = malloc(sizeof(WaylandClient));
+  ref_init(&self->ref);
   self->loop = main_loop_ref(loop);
   self->socket = socket_client_new();
   self->stream_encoder = NULL;
@@ -187,12 +190,44 @@ WaylandClient *wayland_client_new(MainLoop *loop) {
 }
 
 WaylandClient *wayland_client_ref(WaylandClient *self) {
-  // FIXME
+  ref_inc(&self->ref);
   return self;
 }
 
 void wayland_client_unref(WaylandClient *self) {
-  // FIXME
+  if (ref_dec(&self->ref)) {
+    main_loop_unref(self->loop);
+    socket_client_unref(self->socket);
+    if (self->stream_decoder) {
+      wayland_stream_decoder_unref(self->stream_decoder);
+    }
+    if (self->stream_encoder) {
+      wayland_stream_encoder_unref(self->stream_encoder);
+    }
+    for (size_t i = 0; i < self->objects_length; i++) {
+      WaylandObject *o = &self->objects[i];
+      if (o->user_data_unref) {
+        o->user_data_unref(o->user_data);
+      }
+    }
+    free(self->objects);
+    if (self->display) {
+      wl_display_client_unref(self->display);
+    }
+    if (self->registry) {
+      wl_registry_client_unref(self->registry);
+    }
+    if (self->compositor) {
+      wl_compositor_client_unref(self->compositor);
+    }
+    if (self->shm) {
+      wl_shm_client_unref(self->shm);
+    }
+    if (self->wm_base) {
+      xdg_wm_base_client_unref(self->wm_base);
+    }
+    free(self);
+  }
 }
 
 bool wayland_client_connect(WaylandClient *self, const char *display,
@@ -220,7 +255,7 @@ bool wayland_client_connect(WaylandClient *self, const char *display,
   int fd = socket_client_get_fd(self->socket);
   self->stream_encoder = wayland_stream_encoder_new(fd);
   self->stream_decoder =
-      wayland_stream_decoder_new(self->loop, fd, message_cb, self);
+      wayland_stream_decoder_new(self->loop, fd, message_cb, self, NULL);
 
   self->display = wl_display_client_new(self, &display_callbacks, self, NULL);
   self->registry =

@@ -2,11 +2,13 @@
 
 #include "wayland_toplevel.h"
 
+#include "ref.h"
 #include "wl_surface_client.h"
 #include "xdg_surface_client.h"
 #include "xdg_toplevel_client.h"
 
 struct _WaylandToplevel {
+  ref_t ref;
   WlSurfaceClient *surface;
   XdgSurfaceClient *xdg_surface;
   XdgToplevelClient *xdg_toplevel;
@@ -20,7 +22,7 @@ static WlSurfaceClientEventCallbacks surface_callbacks = {};
 
 WaylandToplevel *wayland_toplevel_new(WaylandClient *client) {
   WaylandToplevel *self = malloc(sizeof(WaylandToplevel));
-
+  ref_init(&self->ref);
   self->surface = wl_surface_client_new(client, &surface_callbacks, self, NULL);
   wl_compositor_client_create_surface(wayland_client_get_compositor(client),
                                       wl_surface_client_get_id(self->surface));
@@ -41,12 +43,17 @@ WaylandToplevel *wayland_toplevel_new(WaylandClient *client) {
 }
 
 WaylandToplevel *wayland_toplevel_ref(WaylandToplevel *self) {
-  // FIXME
+  ref_inc(&self->ref);
   return self;
 }
 
 void wayland_toplevel_unref(WaylandToplevel *self) {
-  // FIXME
+  if (ref_dec(&self->ref)) {
+    wl_surface_client_unref(self->surface);
+    xdg_surface_client_unref(self->xdg_surface);
+    xdg_toplevel_client_unref(self->xdg_toplevel);
+    free(self);
+  }
 }
 
 void wayland_toplevel_destroy(WaylandToplevel *self) {

@@ -3,10 +3,12 @@
 
 #include "wayland_server.h"
 
+#include "ref.h"
 #include "socket_server.h"
 #include "wayland_server_client.h"
 
 struct _WaylandServer {
+  ref_t ref;
   MainLoop *loop;
   SocketServer *socket;
 };
@@ -19,18 +21,23 @@ static void connect_cb(int fd, void *user_data) {
 
 WaylandServer *wayland_server_new(MainLoop *loop) {
   WaylandServer *self = malloc(sizeof(WaylandServer));
+  ref_init(&self->ref);
   self->loop = main_loop_ref(loop);
   self->socket = socket_server_new(loop, connect_cb, self, NULL);
   return self;
 }
 
 WaylandServer *wayland_server_ref(WaylandServer *self) {
-  // FIXME
+  ref_inc(&self->ref);
   return self;
 }
 
 void wayland_server_unref(WaylandServer *self) {
-  // FIXME
+  if (ref_dec(&self->ref)) {
+    main_loop_unref(self->loop);
+    socket_server_unref(self->socket);
+    free(self);
+  }
 }
 
 bool wayland_server_run(WaylandServer *self, const char *display) {

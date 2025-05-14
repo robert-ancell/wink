@@ -248,7 +248,7 @@ def generate_server(interface):
             )
             args.append("%s" % arg.name)
         source += "  if (!wayland_message_decoder_finish(decoder)) {\n"
-        source += "    // FIXME\n"
+        source += "    // FIXME: handle error\n"
         source += "    return;\n"
         source += "  }\n"
         args.append("self->user_data")
@@ -296,7 +296,7 @@ def generate_server(interface):
         source += "  self->user_data_unref = user_data_unref;\n"
     source += "\n"
     source += (
-        "  wayland_server_client_add_object(client, id, %s_request_cb, self);\n"
+        "  wayland_server_client_add_object(client, id, %s_request_cb, self, NULL);\n"
         % interface.name
     )
     source += "\n"
@@ -342,7 +342,7 @@ def generate_server(interface):
                 arg.name,
             )
         source += "  if (!wayland_message_encoder_finish(encoder)) {\n"
-        source += "    // FIXME\n"
+        source += "    // FIXME: handle error\n"
         source += "  }\n"
         source += "\n"
         source += "  wayland_server_client_send_message(self->client, encoder);\n"
@@ -460,7 +460,7 @@ def generate_client(interface):
             )
             args.append("%s" % arg.name)
         source += "  if (!wayland_message_decoder_finish(decoder)) {\n"
-        source += "    // FIXME\n"
+        source += "    // FIXME: handle error\n"
         source += "    return;\n"
         source += "  }\n"
         args.append("self->user_data")
@@ -562,7 +562,7 @@ def generate_client(interface):
                 arg.name,
             )
         source += "  if (!wayland_message_encoder_finish(encoder)) {\n"
-        source += "    // FIXME\n"
+        source += "    // FIXME: handle error\n"
         source += "  }\n"
         source += "\n"
         source += "  wayland_client_send_message(self->client, encoder);\n"

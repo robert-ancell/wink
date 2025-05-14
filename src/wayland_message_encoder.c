@@ -4,7 +4,10 @@
 
 #include "wayland_message_encoder.h"
 
+#include "ref.h"
+
 struct _WaylandMessageEncoder {
+  ref_t ref;
   // FIXME: Make dynamic
   uint8_t data[1024];
   size_t data_length;
@@ -16,6 +19,7 @@ struct _WaylandMessageEncoder {
 
 WaylandMessageEncoder *wayland_message_encoder_new(uint32_t id, uint16_t code) {
   WaylandMessageEncoder *self = malloc(sizeof(WaylandMessageEncoder));
+  ref_init(&self->ref);
   self->data_length = 1024;
   self->offset = 0;
   self->fds = NULL;
@@ -30,12 +34,15 @@ WaylandMessageEncoder *wayland_message_encoder_new(uint32_t id, uint16_t code) {
 
 WaylandMessageEncoder *
 wayland_message_encoder_ref(WaylandMessageEncoder *self) {
-  // FIXME
+  ref_inc(&self->ref);
   return self;
 }
 
 void wayland_message_encoder_unref(WaylandMessageEncoder *self) {
-  // FIXME
+  if (ref_dec(&self->ref)) {
+    free(self->fds);
+    free(self);
+  }
 }
 
 void wayland_message_encoder_write_int(WaylandMessageEncoder *self,
@@ -92,7 +99,7 @@ void wayland_message_encoder_write_new_id(WaylandMessageEncoder *self,
 
 void wayland_message_encoder_write_array(WaylandMessageEncoder *self,
                                          const uint32_t *array) {
-  // FIXME
+  // FIXME: Implement array support
 }
 
 void wayland_message_encoder_write_fd(WaylandMessageEncoder *self, int fd) {
