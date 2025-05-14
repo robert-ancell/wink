@@ -36,6 +36,7 @@ XDG_SHELL_CLIENT_SOURCES = $(XDG_SHELL_CLIENT_INTERFACES:%=%_client.c)
 LINUX_DMABUF_CLIENT_SOURCES = $(LINUX_DMABUF_CLIENT_INTERFACES:%=%_client.c)
 SOURCES = main.c \
           main_loop.c \
+          ref.c \
           socket_client.c \
           socket_server.c \
           wayland_client.c \

@@ -1,8 +1,10 @@
-#include "main_loop.h"
-
 #include <poll.h>
 #include <stdbool.h>
 #include <stdlib.h>
+
+#include "main_loop.h"
+
+#include "ref.h"
 
 typedef struct {
   MainLoopReadCallback read_callback;
@@ -11,6 +13,7 @@ typedef struct {
 } FdCallbacks;
 
 struct _MainLoop {
+  ref_t ref;
   struct pollfd *fds;
   FdCallbacks *callbacks;
   nfds_t nfds;
@@ -18,18 +21,23 @@ struct _MainLoop {
 
 MainLoop *main_loop_new() {
   MainLoop *self = malloc(sizeof(MainLoop));
+  ref_init(&self->ref);
   self->fds = NULL;
+  self->callbacks = NULL;
   self->nfds = 0;
   return self;
 }
 
 MainLoop *main_loop_ref(MainLoop *self) {
-  // FIXME
+  ref_inc(&self->ref);
   return self;
 }
 
 void main_loop_unref(MainLoop *self) {
-  // FIXME
+  if (ref_dec(&self->ref)) {
+    free(self->fds);
+    free(self->callbacks);
+  }
 }
 
 void main_loop_add_fd(MainLoop *self, int fd,
