@@ -314,6 +314,7 @@ def generate_server(interface):
         source += "    if (self->user_data_unref) {\n"
         source += "      self->user_data_unref(self->user_data);\n"
         source += "    }\n"
+    source += "    free(self);\n"
     source += "  }\n"
     source += "}\n"
     for code, event in enumerate(interface.events):
@@ -529,6 +530,7 @@ def generate_client(interface):
         source += "    if (self->user_data_unref) {\n"
         source += "      self->user_data_unref(self->user_data);\n"
         source += "    }\n"
+    source += "    free(self);\n"
     source += "  }\n"
     source += "}\n"
     source += "\n"

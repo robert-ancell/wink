@@ -3,7 +3,10 @@
 
 #include "wayland_message_decoder.h"
 
+#include "ref.h"
+
 struct _WaylandMessageDecoder {
+  ref_t ref;
   const uint8_t *data;
   size_t data_length;
   size_t offset;
@@ -15,6 +18,7 @@ struct _WaylandMessageDecoder {
 WaylandMessageDecoder *wayland_message_decoder_new(const uint8_t *data,
                                                    size_t data_length) {
   WaylandMessageDecoder *self = malloc(sizeof(WaylandMessageDecoder));
+  ref_init(&self->ref);
   self->data = data;
   self->data_length = data_length;
   self->offset = 0;
@@ -33,12 +37,14 @@ WaylandMessageDecoder *wayland_message_decoder_new(const uint8_t *data,
 
 WaylandMessageDecoder *
 wayland_message_decoder_ref(WaylandMessageDecoder *self) {
-  // FIXME
+  ref_inc(&self->ref);
   return self;
 }
 
 void wayland_message_decoder_unref(WaylandMessageDecoder *self) {
-  // FIXME
+  if (ref_dec(&self->ref)) {
+    free(self);
+  }
 }
 
 uint32_t wayland_message_decoder_get_id(WaylandMessageDecoder *self) {

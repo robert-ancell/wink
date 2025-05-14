@@ -37,6 +37,7 @@ void main_loop_unref(MainLoop *self) {
   if (ref_dec(&self->ref)) {
     free(self->fds);
     free(self->callbacks);
+    free(self);
   }
 }
 
