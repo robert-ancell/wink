@@ -38,7 +38,7 @@ uint32_t wayland_client_add_object(WaylandClient *self,
                                    void (*user_data_unref)(void *));
 
 void wayland_client_send_message(WaylandClient *self,
-                                 WaylandMessageEncoder *encoder);
+                                 WaylandMessageEncoder *message);
 
 void wayland_client_sync(WaylandClient *self,
                          WaylandClientSyncDoneCallback done_callback,

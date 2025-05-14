@@ -8,6 +8,7 @@
 
 #include "socket_client.h"
 #include "wayland_stream_decoder.h"
+#include "wayland_stream_encoder.h"
 #include "wl_callback_client.h"
 #include "wl_compositor_client.h"
 #include "wl_display_client.h"
@@ -29,6 +30,7 @@ struct _WaylandClient {
   MainLoop *loop;
   SocketClient *socket;
   WaylandStreamDecoder *stream_decoder;
+  WaylandStreamEncoder *stream_encoder;
   uint32_t next_id;
   WaylandObject *objects;
   size_t objects_length;
@@ -227,8 +229,9 @@ bool wayland_client_connect(WaylandClient *self, const char *display,
     return false;
   }
 
-  main_loop_add_fd(self->loop, socket_client_get_fd(self->socket), read_cb,
-                   self, NULL);
+  int fd = socket_client_get_fd(self->socket);
+  self->stream_encoder = wayland_stream_encoder_new(fd);
+  main_loop_add_fd(self->loop, fd, read_cb, self, NULL);
 
   self->display = wl_display_client_new(self, &display_callbacks, self, NULL);
   self->registry =
@@ -263,12 +266,8 @@ uint32_t wayland_client_add_object(WaylandClient *self,
 }
 
 void wayland_client_send_message(WaylandClient *self,
-                                 WaylandMessageEncoder *encoder) {
-  size_t message_length = wayland_message_encoder_get_length(encoder);
-  // FIXME: Handle partial writes
-  int fd = socket_client_get_fd(self->socket);
-  assert(write(fd, wayland_message_encoder_get_data(encoder), message_length) ==
-         message_length);
+                                 WaylandMessageEncoder *message) {
+  wayland_stream_encoder_write(self->stream_encoder, message);
 }
 
 void wayland_client_sync(WaylandClient *self,

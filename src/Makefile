@@ -44,6 +44,7 @@ SOURCES = main.c \
           wayland_server.c \
           wayland_server_client.c \
           wayland_stream_decoder.c \
+          wayland_stream_encoder.c \
           wayland_toplevel.c
 GENERATED_SOURCES = $(WAYLAND_SERVER_SOURCES) \
                     $(XDG_SHELL_SERVER_SOURCES) \

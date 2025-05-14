@@ -23,4 +23,4 @@ void wayland_server_client_add_object(
     WaylandServerClientRequestCallback request_callback, void *user_data);
 
 void wayland_server_client_send_message(WaylandServerClient *self,
-                                        WaylandMessageEncoder *encoder);
+                                        WaylandMessageEncoder *message);

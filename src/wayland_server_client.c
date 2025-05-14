@@ -7,6 +7,7 @@
 #include "wayland_server_client.h"
 
 #include "wayland_stream_decoder.h"
+#include "wayland_stream_encoder.h"
 #include "wl_buffer_server.h"
 #include "wl_callback_server.h"
 #include "wl_compositor_server.h"
@@ -31,6 +32,7 @@ typedef struct {
 struct _WaylandServerClient {
   int fd;
   WaylandStreamDecoder *stream_decoder;
+  WaylandStreamEncoder *stream_encoder;
   WaylandObject *objects;
   size_t objects_length;
 };
@@ -411,6 +413,7 @@ WaylandServerClient *wayland_server_client_new(MainLoop *loop, int fd) {
   WaylandServerClient *self = malloc(sizeof(WaylandServerClient));
   self->fd = fd;
   self->stream_decoder = wayland_stream_decoder_new(message_cb, self);
+  self->stream_encoder = wayland_stream_encoder_new(fd);
   self->objects = NULL;
   self->objects_length = 0;
 
@@ -449,7 +452,6 @@ void wayland_server_client_add_object(
 }
 
 void wayland_server_client_send_message(WaylandServerClient *self,
-                                        WaylandMessageEncoder *encoder) {
-  write(self->fd, wayland_message_encoder_get_data(encoder),
-        wayland_message_encoder_get_length(encoder));
+                                        WaylandMessageEncoder *message) {
+  wayland_stream_encoder_write(self->stream_encoder, message);
 }
