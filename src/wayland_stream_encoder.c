@@ -34,6 +34,11 @@ void wayland_stream_encoder_write(WaylandStreamEncoder *self,
   const int *fds = wayland_message_encoder_get_fds(message);
   size_t fds_length = wayland_message_encoder_get_fds_length(message);
 
+  if (fds_length == 0) {
+    assert(send(self->fd, data, data_length, 0) == data_length);
+    return;
+  }
+
   struct iovec iov;
   iov.iov_base = (void *)data;
   iov.iov_len = data_length;
