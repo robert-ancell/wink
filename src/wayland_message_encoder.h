@@ -39,3 +39,7 @@ bool wayland_message_encoder_finish(WaylandMessageEncoder *self);
 const uint8_t *wayland_message_encoder_get_data(WaylandMessageEncoder *self);
 
 size_t wayland_message_encoder_get_length(WaylandMessageEncoder *self);
+
+const int *wayland_message_encoder_get_fds(WaylandMessageEncoder *self);
+
+size_t wayland_message_encoder_get_fds_length(WaylandMessageEncoder *self);
