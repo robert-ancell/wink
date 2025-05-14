@@ -4,21 +4,21 @@
 #include <sys/un.h>
 #include <unistd.h>
 
-#include "socket_server.h"
+#include "unix_socket_server.h"
 
 #include "ref.h"
 
-struct _SocketServer {
+struct _UnixSocketServer {
   ref_t ref;
   MainLoop *loop;
   Fd *fd;
-  SocketServerConnectCallback connect_callback;
+  UnixSocketServerConnectCallback connect_callback;
   void *user_data;
   void (*user_data_unref)(void *);
 };
 
 static void read_cb(MainLoop *loop, void *user_data) {
-  SocketServer *self = user_data;
+  UnixSocketServer *self = user_data;
 
   struct sockaddr_un address;
   socklen_t address_len = sizeof(address);
@@ -33,11 +33,11 @@ static void read_cb(MainLoop *loop, void *user_data) {
   fd_unref(fd_object);
 }
 
-SocketServer *socket_server_new(MainLoop *loop,
-                                SocketServerConnectCallback connect_callback,
-                                void *user_data,
-                                void (*user_data_unref)(void *)) {
-  SocketServer *self = malloc(sizeof(SocketServer));
+UnixSocketServer *
+unix_socket_server_new(MainLoop *loop,
+                       UnixSocketServerConnectCallback connect_callback,
+                       void *user_data, void (*user_data_unref)(void *)) {
+  UnixSocketServer *self = malloc(sizeof(UnixSocketServer));
   ref_init(&self->ref);
   self->loop = main_loop_ref(loop);
   self->fd = NULL;
@@ -47,12 +47,12 @@ SocketServer *socket_server_new(MainLoop *loop,
   return self;
 }
 
-SocketServer *socket_server_ref(SocketServer *self) {
+UnixSocketServer *unix_socket_server_ref(UnixSocketServer *self) {
   ref_inc(&self->ref);
   return self;
 }
 
-void socket_server_unref(SocketServer *self) {
+void unix_socket_server_unref(UnixSocketServer *self) {
   if (ref_dec(&self->ref)) {
     main_loop_unref(self->loop);
     if (self->user_data_unref) {
@@ -62,7 +62,7 @@ void socket_server_unref(SocketServer *self) {
   }
 }
 
-bool socket_server_run(SocketServer *self, const char *path) {
+bool unix_socket_server_run(UnixSocketServer *self, const char *path) {
   int fd = socket(AF_UNIX, SOCK_STREAM, 0);
   if (fd == -1) {
     return false;
@@ -72,15 +72,6 @@ bool socket_server_run(SocketServer *self, const char *path) {
   struct sockaddr_un address;
   memset(&address, 0, sizeof(address));
   address.sun_family = AF_UNIX;
-  // int path_len =
-  //     snprintf(address.sun_path + 1, sizeof(address.sun_path) - 1, "%s",
-  //     path);
-  // socklen_t address_length =
-  //     offsetof(struct sockaddr_un, sun_path) + 1 + path_len;
-  // if (bind(fd_get(self->fd), (struct sockaddr *)&address, address_length) ==
-  // -1) {
-  //   return false;
-  // }
   snprintf(address.sun_path, sizeof(address.sun_path), "%s", path);
   unlink(path);
   if (bind(fd_get(self->fd), (struct sockaddr *)&address, sizeof(address)) ==

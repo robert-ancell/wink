@@ -6,7 +6,7 @@
 #include "wayland_client.h"
 
 #include "ref.h"
-#include "socket_client.h"
+#include "unix_socket_client.h"
 #include "wayland_stream_decoder.h"
 #include "wayland_stream_encoder.h"
 #include "wl_callback_client.h"
@@ -33,7 +33,7 @@ struct _WaylandClient {
   void *user_data;
   void (*user_data_unref)(void *);
   MainLoop *loop;
-  SocketClient *socket;
+  UnixSocketClient *socket;
   WaylandStreamDecoder *stream_decoder;
   WaylandStreamEncoder *stream_encoder;
   uint32_t next_id;
@@ -184,7 +184,7 @@ wayland_client_new(MainLoop *loop,
   self->user_data = user_data;
   self->user_data_unref = user_data_unref;
   self->loop = main_loop_ref(loop);
-  self->socket = socket_client_new();
+  self->socket = unix_socket_client_new();
   self->stream_encoder = NULL;
   self->stream_decoder = NULL;
   self->next_id = 1;
@@ -209,7 +209,7 @@ void wayland_client_unref(WaylandClient *self) {
       self->user_data_unref(self->user_data);
     }
     main_loop_unref(self->loop);
-    socket_client_unref(self->socket);
+    unix_socket_client_unref(self->socket);
     if (self->stream_decoder) {
       wayland_stream_decoder_unref(self->stream_decoder);
     }
@@ -258,11 +258,11 @@ bool wayland_client_connect(WaylandClient *self, const char *display) {
     snprintf(path, 1024, "%s/%s", runtime_dir, display);
   }
 
-  if (!socket_client_connect(self->socket, path)) {
+  if (!unix_socket_client_connect(self->socket, path)) {
     return false;
   }
 
-  Fd *fd = socket_client_get_fd(self->socket);
+  Fd *fd = unix_socket_client_get_fd(self->socket);
   self->stream_encoder = wayland_stream_encoder_new(fd);
   self->stream_decoder = wayland_stream_decoder_new(self->loop, fd, message_cb,
                                                     close_cb, self, NULL);

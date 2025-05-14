@@ -38,8 +38,8 @@ SOURCES = fd.c \
           main.c \
           main_loop.c \
           ref.c \
-          socket_client.c \
-          socket_server.c \
+          unix_socket_client.c \
+          unix_socket_server.c \
           wayland_client.c \
           wayland_message_decoder.c \
           wayland_message_encoder.c \

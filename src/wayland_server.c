@@ -4,7 +4,7 @@
 #include "wayland_server.h"
 
 #include "ref.h"
-#include "socket_server.h"
+#include "unix_socket_server.h"
 #include "wayland_server_client.h"
 
 struct _WaylandServer {
@@ -14,7 +14,7 @@ struct _WaylandServer {
   WaylandServerClientDisconnectedCallback disconnected_callback;
   void *user_data;
   void (*user_data_unref)(void *);
-  SocketServer *socket;
+  UnixSocketServer *socket;
   WaylandServerClient **clients;
   size_t clients_length;
 };
@@ -41,7 +41,7 @@ static void disconnect_cb(WaylandServerClient *client, void *user_data) {
   }
 }
 
-static void connect_cb(SocketServer *server, Fd *fd, void *user_data) {
+static void connect_cb(UnixSocketServer *server, Fd *fd, void *user_data) {
   WaylandServer *self = user_data;
 
   WaylandServerClient *client =
@@ -64,7 +64,7 @@ WaylandServer *wayland_server_new(
   self->disconnected_callback = disconnected_callback;
   self->user_data = user_data;
   self->user_data_unref = user_data_unref;
-  self->socket = socket_server_new(loop, connect_cb, self, NULL);
+  self->socket = unix_socket_server_new(loop, connect_cb, self, NULL);
   return self;
 }
 
@@ -79,7 +79,7 @@ void wayland_server_unref(WaylandServer *self) {
     if (self->user_data_unref) {
       self->user_data_unref(self->user_data);
     }
-    socket_server_unref(self->socket);
+    unix_socket_server_unref(self->socket);
     for (size_t i = 0; i < self->clients_length; i++) {
       wayland_server_client_unref(self->clients[i]);
     }
@@ -93,5 +93,5 @@ bool wayland_server_run(WaylandServer *self, const char *display) {
   char path[1024];
   snprintf(path, 1024, "%s/%s", runtime_dir, display);
 
-  return socket_server_run(self->socket, path);
+  return unix_socket_server_run(self->socket, path);
 }

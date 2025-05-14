@@ -4,35 +4,35 @@
 #include <sys/un.h>
 #include <unistd.h>
 
-#include "socket_client.h"
+#include "unix_socket_client.h"
 
 #include "ref.h"
 
-struct _SocketClient {
+struct _UnixSocketClient {
   ref_t ref;
   Fd *fd;
 };
 
-SocketClient *socket_client_new() {
-  SocketClient *self = malloc(sizeof(SocketClient));
+UnixSocketClient *unix_socket_client_new() {
+  UnixSocketClient *self = malloc(sizeof(UnixSocketClient));
   ref_init(&self->ref);
   self->fd = NULL;
   return self;
 }
 
-SocketClient *socket_client_ref(SocketClient *self) {
+UnixSocketClient *unix_socket_client_ref(UnixSocketClient *self) {
   ref_inc(&self->ref);
   return self;
 }
 
-void socket_client_unref(SocketClient *self) {
+void unix_socket_client_unref(UnixSocketClient *self) {
   if (ref_dec(&self->ref)) {
     fd_unref(self->fd);
     free(self);
   }
 }
 
-bool socket_client_connect(SocketClient *self, const char *path) {
+bool unix_socket_client_connect(UnixSocketClient *self, const char *path) {
   int fd = socket(AF_UNIX, SOCK_STREAM, 0);
   if (fd == -1) {
     return false;
@@ -51,4 +51,4 @@ bool socket_client_connect(SocketClient *self, const char *path) {
   return true;
 }
 
-Fd *socket_client_get_fd(SocketClient *self) { return self->fd; }
+Fd *unix_socket_client_get_fd(UnixSocketClient *self) { return self->fd; }
