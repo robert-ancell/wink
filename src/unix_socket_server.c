@@ -55,6 +55,8 @@ UnixSocketServer *unix_socket_server_ref(UnixSocketServer *self) {
 void unix_socket_server_unref(UnixSocketServer *self) {
   if (ref_dec(&self->ref)) {
     main_loop_unref(self->loop);
+    fd_unref(self->fd);
+    // FIXME: Delete socket, or is that done in shutdown?
     if (self->user_data_unref) {
       self->user_data_unref(self->user_data);
     }

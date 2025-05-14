@@ -25,10 +25,11 @@ static void disconnected_cb(WaylandClient *client, void *user_data) {
   // FIXME
 }
 
+#include <stdio.h>
 static void client_connected_cb(WaylandServer *server,
                                 WaylandServerClient *client, void *user_data) {
   // WinkServer *self = user_data;
-  // FIXME
+  printf("connect\n");
 }
 
 static void client_disconnected_cb(WaylandServer *server,

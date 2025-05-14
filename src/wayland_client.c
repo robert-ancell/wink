@@ -55,16 +55,16 @@ typedef struct {
 
 static uint32_t get_next_id(WaylandClient *self) { return self->next_id++; }
 
-static WaylandObject *find_object(WaylandClient *self, uint32_t id) {
+static ssize_t find_object(WaylandClient *self, uint32_t id) {
   // FIXME: Binary search
   for (size_t i = 0; i < self->objects_length; i++) {
     WaylandObject *o = &self->objects[i];
     if (o->id == id) {
-      return o;
+      return i;
     }
   }
 
-  return NULL;
+  return -1;
 }
 
 static void ping_cb(uint32_t serial, void *user_data) {
@@ -94,29 +94,28 @@ static void error_cb(uint32_t object_id, uint32_t code, const char *message,
 static void delete_id_cb(uint32_t id, void *user_data) {
   WaylandClient *self = user_data;
 
-  WaylandObject *o = find_object(self, id);
-  if (o == NULL) {
+  ssize_t i = find_object(self, id);
+  if (i == -1) {
     return;
   }
+  WaylandObject *o = &self->objects[i];
 
   if (o->delete_callback) {
     o->delete_callback(self, o->user_data);
   }
 
-  // FIXME: Binary search and reuse lookup from above.
-  for (size_t i = 0; i < self->objects_length; i++) {
-    if (o->id == id) {
-      i++;
-      while (i < self->objects_length) {
-        self->objects[i - 1] = self->objects[i];
-      }
-      self->objects_length--;
-    }
-  }
   if (o->user_data_unref) {
     o->user_data_unref(o->user_data);
   }
-  free(o);
+
+  i++;
+  while (i < self->objects_length) {
+    self->objects[i - 1] = self->objects[i];
+    i++;
+  }
+  self->objects_length--;
+  self->objects =
+      realloc(self->objects, sizeof(WaylandObject) * self->objects_length);
 }
 
 static WlDisplayClientEventCallbacks display_callbacks = {
@@ -152,13 +151,14 @@ static void message_cb(WaylandStreamDecoder *decoder,
   WaylandClient *self = user_data;
 
   uint32_t id = wayland_message_decoder_get_id(message);
-  WaylandObject *o = find_object(self, id);
-  if (o == NULL) {
+  ssize_t i = find_object(self, id);
+  if (i == -1) {
     // FIXME: Generate error
     printf("unknown object %d\n", id);
     return;
   }
 
+  WaylandObject *o = &self->objects[i];
   o->event_callback(self, message, o->user_data);
 }
 

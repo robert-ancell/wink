@@ -7,6 +7,7 @@
 #include "ref.h"
 
 typedef struct {
+  Fd *fd;
   MainLoopReadCallback read_callback;
   void *user_data;
   void (*user_data_unref)(void *);
@@ -36,6 +37,13 @@ MainLoop *main_loop_ref(MainLoop *self) {
 void main_loop_unref(MainLoop *self) {
   if (ref_dec(&self->ref)) {
     free(self->fds);
+    for (size_t i = 0; i < self->fds_length; i++) {
+      FdCallbacks *c = &self->callbacks[i];
+      fd_unref(c->fd);
+      if (c->user_data_unref) {
+        c->user_data_unref(c->user_data);
+      }
+    }
     free(self->callbacks);
     free(self);
   }
@@ -58,6 +66,7 @@ void main_loop_add_fd(MainLoop *self, Fd *fd,
   f->revents = 0;
 
   FdCallbacks *c = &self->callbacks[self->fds_length - 1];
+  c->fd = fd_ref(fd);
   c->read_callback = read_callback;
   c->user_data = user_data;
   c->user_data_unref = user_data_unref;

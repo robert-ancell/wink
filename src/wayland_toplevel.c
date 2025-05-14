@@ -18,7 +18,20 @@ static XdgToplevelClientEventCallbacks xdg_toplevel_callbacks = {};
 
 static XdgSurfaceClientEventCallbacks xdg_surface_callbacks = {};
 
-static WlSurfaceClientEventCallbacks surface_callbacks = {};
+static void enter_cb(uint32_t output, void *user_data) {}
+
+static void leave_cb(uint32_t output, void *user_data) {}
+
+static void preferred_buffer_scale_cb(int32_t factor, void *user_data) {}
+
+static void preferred_buffer_transform_cb(uint32_t transform, void *user_data) {
+}
+
+static WlSurfaceClientEventCallbacks surface_callbacks = {
+    .enter = enter_cb,
+    .leave = leave_cb,
+    .preferred_buffer_scale = preferred_buffer_scale_cb,
+    .preferred_buffer_transform = preferred_buffer_transform_cb};
 
 WaylandToplevel *wayland_toplevel_new(WaylandClient *client) {
   WaylandToplevel *self = malloc(sizeof(WaylandToplevel));

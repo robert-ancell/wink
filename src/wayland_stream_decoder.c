@@ -116,6 +116,7 @@ wayland_stream_decoder_new(MainLoop *loop, Fd *fd,
   ref_init(&self->ref);
   self->fd = fd_ref(fd);
   self->message_callback = message_callback;
+  self->close_callback = close_callback;
   self->user_data = user_data;
   self->user_data_unref = user_data_unref;
   self->buffer_used = 0;
