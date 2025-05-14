@@ -6,7 +6,7 @@
 
 #include "wayland_server_client.h"
 
-#include "wayland_message_decoder.h"
+#include "wayland_stream_decoder.h"
 #include "wl_buffer_server.h"
 #include "wl_callback_server.h"
 #include "wl_compositor_server.h"
@@ -30,7 +30,7 @@ typedef struct {
 
 struct _WaylandServerClient {
   int fd;
-  WaylandMessageDecoder *message_decoder;
+  WaylandStreamDecoder *stream_decoder;
   WaylandObject *objects;
   size_t objects_length;
 };
@@ -381,10 +381,10 @@ static WaylandObject *find_object(WaylandServerClient *self, uint32_t id) {
   return NULL;
 }
 
-static void message_cb(uint32_t id, uint16_t code,
-                       WaylandPayloadDecoder *payload, void *user_data) {
+static void message_cb(WaylandMessageDecoder *message, void *user_data) {
   WaylandServerClient *self = user_data;
 
+  uint32_t id = wayland_message_decoder_get_id(message);
   WaylandObject *o = find_object(self, id);
   if (o == NULL) {
     // FIXME: Generate error
@@ -392,7 +392,7 @@ static void message_cb(uint32_t id, uint16_t code,
     return;
   }
 
-  o->request_callback(code, payload, o->user_data);
+  o->request_callback(message, o->user_data);
 }
 
 static void read_cb(void *user_data) {
@@ -404,13 +404,13 @@ static void read_cb(void *user_data) {
     return;
   }
 
-  wayland_message_decoder_write(self->message_decoder, data, data_length);
+  wayland_stream_decoder_write(self->stream_decoder, data, data_length);
 }
 
 WaylandServerClient *wayland_server_client_new(MainLoop *loop, int fd) {
   WaylandServerClient *self = malloc(sizeof(WaylandServerClient));
   self->fd = fd;
-  self->message_decoder = wayland_message_decoder_new(message_cb, self);
+  self->stream_decoder = wayland_stream_decoder_new(message_cb, self);
   self->objects = NULL;
   self->objects_length = 0;
 
@@ -448,15 +448,8 @@ void wayland_server_client_add_object(
   o->user_data = user_data;
 }
 
-void wayland_server_client_send_event(WaylandServerClient *self, uint32_t id,
-                                      uint16_t code,
-                                      WaylandPayloadEncoder *encoder) {
-  size_t payload_length = wayland_payload_encoder_get_length(encoder);
-  // FIXME: Check may payload length (65535-8)
-  uint32_t header[2];
-  header[0] = id;
-  header[1] = (payload_length + 8) << 16 | code;
-  // FIXME: Handle partial writes
-  write(self->fd, header, 8);
-  write(self->fd, wayland_payload_encoder_get_data(encoder), payload_length);
+void wayland_server_client_send_message(WaylandServerClient *self,
+                                        WaylandMessageEncoder *encoder) {
+  write(self->fd, wayland_message_encoder_get_data(encoder),
+        wayland_message_encoder_get_length(encoder));
 }

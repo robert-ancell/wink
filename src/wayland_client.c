@@ -7,7 +7,7 @@
 #include "wayland_client.h"
 
 #include "socket_client.h"
-#include "wayland_message_decoder.h"
+#include "wayland_stream_decoder.h"
 #include "wl_callback_client.h"
 #include "wl_compositor_client.h"
 #include "wl_display_client.h"
@@ -28,7 +28,7 @@ typedef struct {
 struct _WaylandClient {
   MainLoop *loop;
   SocketClient *socket;
-  WaylandMessageDecoder *message_decoder;
+  WaylandStreamDecoder *stream_decoder;
   uint32_t next_id;
   WaylandObject *objects;
   size_t objects_length;
@@ -145,10 +145,10 @@ static void global_remove_cb(uint32_t name, void *user_data) {}
 static WlRegistryClientEventCallbacks registry_callbacks = {
     .global = global_cb, .global_remove = global_remove_cb};
 
-static void message_cb(uint32_t id, uint16_t code,
-                       WaylandPayloadDecoder *payload, void *user_data) {
+static void message_cb(WaylandMessageDecoder *message, void *user_data) {
   WaylandClient *self = user_data;
 
+  uint32_t id = wayland_message_decoder_get_id(message);
   WaylandObject *o = find_object(self, id);
   if (o == NULL) {
     // FIXME: Generate error
@@ -156,7 +156,7 @@ static void message_cb(uint32_t id, uint16_t code,
     return;
   }
 
-  o->event_callback(code, payload, o->user_data);
+  o->event_callback(message, o->user_data);
 }
 
 static void read_cb(void *user_data) {
@@ -168,7 +168,7 @@ static void read_cb(void *user_data) {
     return;
   }
 
-  wayland_message_decoder_write(self->message_decoder, data, data_length);
+  wayland_stream_decoder_write(self->stream_decoder, data, data_length);
 }
 
 static void registry_done_cb(uint32_t callback_data, void *user_data) {
@@ -184,7 +184,7 @@ WaylandClient *wayland_client_new(MainLoop *loop) {
   WaylandClient *self = malloc(sizeof(WaylandClient));
   self->loop = main_loop_ref(loop);
   self->socket = socket_client_new();
-  self->message_decoder = wayland_message_decoder_new(message_cb, self);
+  self->stream_decoder = wayland_stream_decoder_new(message_cb, self);
   self->next_id = 1;
   self->objects = NULL;
   self->objects_length = 0;
@@ -262,19 +262,13 @@ uint32_t wayland_client_add_object(WaylandClient *self,
   return o->id;
 }
 
-void wayland_client_send_request(WaylandClient *self, uint32_t id,
-                                 uint16_t code,
-                                 WaylandPayloadEncoder *encoder) {
-  size_t payload_length = wayland_payload_encoder_get_length(encoder);
-  // FIXME: Check may payload length (65535-8)
-  uint32_t header[2];
-  header[0] = id;
-  header[1] = (payload_length + 8) << 16 | code;
+void wayland_client_send_message(WaylandClient *self,
+                                 WaylandMessageEncoder *encoder) {
+  size_t message_length = wayland_message_encoder_get_length(encoder);
   // FIXME: Handle partial writes
   int fd = socket_client_get_fd(self->socket);
-  assert(write(fd, header, 8) == 8);
-  assert(write(fd, wayland_payload_encoder_get_data(encoder), payload_length) ==
-         payload_length);
+  assert(write(fd, wayland_message_encoder_get_data(encoder), message_length) ==
+         message_length);
 }
 
 void wayland_client_sync(WaylandClient *self,

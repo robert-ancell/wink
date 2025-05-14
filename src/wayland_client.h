@@ -5,14 +5,13 @@ typedef struct _WaylandClient WaylandClient;
 #include <stdbool.h>
 
 #include "main_loop.h"
-#include "wayland_payload_decoder.h"
-#include "wayland_payload_encoder.h"
+#include "wayland_message_decoder.h"
+#include "wayland_message_encoder.h"
 #include "wl_compositor_client.h"
 #include "wl_shm_client.h"
 #include "xdg_wm_base_client.h"
 
-typedef void (*WaylandClientEventCallback)(uint16_t code,
-                                           WaylandPayloadDecoder *payload,
+typedef void (*WaylandClientEventCallback)(WaylandMessageDecoder *payload,
                                            void *user_data);
 
 typedef void (*WaylandClientDeleteCallback)(void *user_data);
@@ -38,8 +37,8 @@ uint32_t wayland_client_add_object(WaylandClient *self,
                                    void *user_data,
                                    void (*user_data_unref)(void *));
 
-void wayland_client_send_request(WaylandClient *self, uint32_t id,
-                                 uint16_t code, WaylandPayloadEncoder *encoder);
+void wayland_client_send_message(WaylandClient *self,
+                                 WaylandMessageEncoder *encoder);
 
 void wayland_client_sync(WaylandClient *self,
                          WaylandClientSyncDoneCallback done_callback,

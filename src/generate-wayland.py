@@ -220,7 +220,7 @@ def generate_server(interface):
     source += "};\n"
     for request in interface.requests:
         source += "\n"
-        source += "static void %s_%s(%s *self, WaylandPayloadDecoder *decoder) {\n" % (
+        source += "static void %s_%s(%s *self, WaylandMessageDecoder *decoder) {\n" % (
             interface.name,
             request.name,
             class_name,
@@ -229,22 +229,22 @@ def generate_server(interface):
         for arg in request.args:
             if arg.type == "new_id" and arg.interface is None:
                 source += (
-                    "  const char *%s_interface = wayland_payload_decoder_read_string(decoder);\n"
+                    "  const char *%s_interface = wayland_message_decoder_read_string(decoder);\n"
                     % arg.name
                 )
                 source += (
-                    "  uint32_t %s_version = wayland_payload_decoder_read_uint(decoder);\n"
+                    "  uint32_t %s_version = wayland_message_decoder_read_uint(decoder);\n"
                     % arg.name
                 )
                 args.append("%s_interface" % arg.name)
                 args.append("%s_version" % arg.name)
-            source += "  %s %s = wayland_payload_decoder_read_%s(decoder);\n" % (
+            source += "  %s %s = wayland_message_decoder_read_%s(decoder);\n" % (
                 type_to_native(arg.type),
                 arg.name,
                 arg.type,
             )
             args.append("%s" % arg.name)
-        source += "  if (!wayland_payload_decoder_finish(decoder)) {\n"
+        source += "  if (!wayland_message_decoder_finish(decoder)) {\n"
         source += "    // FIXME\n"
         source += "    return;\n"
         source += "  }\n"
@@ -256,13 +256,13 @@ def generate_server(interface):
         source += "}\n"
     source += "\n"
     source += (
-        "static void %s_request_cb(uint16_t code, WaylandPayloadDecoder *decoder, void *user_data) {\n"
+        "static void %s_request_cb(WaylandMessageDecoder *decoder, void *user_data) {\n"
         % interface.name
     )
     if len(interface.requests) > 0:
         source += "  %s *self = user_data;\n" % class_name
         source += "\n"
-        source += "  switch(code) {\n"
+        source += "  switch(wayland_message_decoder_get_code(decoder)) {\n"
         for code, request in enumerate(interface.requests):
             source += "  case %d:\n" % code
             source += "    %s_%s(self, decoder);\n" % (
@@ -313,31 +313,31 @@ def generate_server(interface):
         for arg in event.args:
             args.extend(arg_to_native(arg))
         source += "void %s_%s(%s) {\n" % (prefix, event.name, ",".join(args))
-        source += "  WaylandPayloadEncoder *encoder = wayland_payload_encoder_new();\n"
+        source += (
+            "  WaylandMessageEncoder *encoder = wayland_message_encoder_new(self->id, %d);\n"
+            % code
+        )
         for arg in event.args:
             if arg.type == "new_id" and arg.interface is None:
                 source += (
-                    "  wayland_payload_encoder_write_string(encoder, %s_interface);\n"
+                    "  wayland_message_encoder_write_string(encoder, %s_interface);\n"
                     % arg.name
                 )
                 source += (
-                    "  wayland_payload_encoder_write_uint(encoder, %s_version);\n"
+                    "  wayland_message_encoder_write_uint(encoder, %s_version);\n"
                     % arg.name
                 )
-            source += "  wayland_payload_encoder_write_%s(encoder, %s);\n" % (
+            source += "  wayland_message_encoder_write_%s(encoder, %s);\n" % (
                 arg.type,
                 arg.name,
             )
-        source += "  if (!wayland_payload_encoder_finish(encoder)) {\n"
+        source += "  if (!wayland_message_encoder_finish(encoder)) {\n"
         source += "    // FIXME\n"
         source += "  }\n"
         source += "\n"
-        source += (
-            "  wayland_server_client_send_event(self->client, self->id, %d, encoder);\n"
-            % code
-        )
+        source += "  wayland_server_client_send_message(self->client, encoder);\n"
         source += "\n"
-        source += "  wayland_payload_encoder_unref(encoder);\n"
+        source += "  wayland_message_encoder_unref(encoder);\n"
         source += "}\n"
 
     open(header_path, "w").write(header)
@@ -422,7 +422,7 @@ def generate_client(interface):
     source += "};\n"
     for event in interface.events:
         source += "\n"
-        source += "static void %s_%s(%s *self, WaylandPayloadDecoder *decoder) {\n" % (
+        source += "static void %s_%s(%s *self, WaylandMessageDecoder *decoder) {\n" % (
             interface.name,
             event.name,
             class_name,
@@ -431,22 +431,22 @@ def generate_client(interface):
         for arg in event.args:
             if arg.type == "new_id" and arg.interface is None:
                 source += (
-                    "  const char *%s_interface = wayland_payload_decoder_read_string(decoder);\n"
+                    "  const char *%s_interface = wayland_message_decoder_read_string(decoder);\n"
                     % arg.name
                 )
                 source += (
-                    "  uint32_t %s_version = wayland_payload_decoder_read_uint(decoder);\n"
+                    "  uint32_t %s_version = wayland_message_decoder_read_uint(decoder);\n"
                     % arg.name
                 )
                 args.append("%s_interface" % arg.name)
                 args.append("%s_version" % arg.name)
-            source += "  %s %s = wayland_payload_decoder_read_%s(decoder);\n" % (
+            source += "  %s %s = wayland_message_decoder_read_%s(decoder);\n" % (
                 type_to_native(arg.type),
                 arg.name,
                 arg.type,
             )
             args.append("%s" % arg.name)
-        source += "  if (!wayland_payload_decoder_finish(decoder)) {\n"
+        source += "  if (!wayland_message_decoder_finish(decoder)) {\n"
         source += "    // FIXME\n"
         source += "    return;\n"
         source += "  }\n"
@@ -458,13 +458,13 @@ def generate_client(interface):
         source += "}\n"
     source += "\n"
     source += (
-        "static void %s_event_cb(uint16_t code, WaylandPayloadDecoder *decoder, void *user_data) {\n"
+        "static void %s_event_cb(WaylandMessageDecoder *decoder, void *user_data) {\n"
         % interface.name
     )
     if len(interface.events) > 0:
         source += "  %s *self = user_data;\n" % class_name
         source += "\n"
-        source += "  switch(code) {\n"
+        source += "  switch(wayland_message_decoder_get_code(decoder)) {\n"
         for code, event in enumerate(interface.events):
             source += "  case %d:\n" % code
             source += "    %s_%s(self, decoder);\n" % (
@@ -523,31 +523,31 @@ def generate_client(interface):
         for arg in request.args:
             args.extend(arg_to_native(arg))
         source += "void %s_%s(%s) {\n" % (prefix, request.name, ",".join(args))
-        source += "  WaylandPayloadEncoder *encoder = wayland_payload_encoder_new();\n"
+        source += (
+            "  WaylandMessageEncoder *encoder = wayland_message_encoder_new(self->id, %d);\n"
+            % code
+        )
         for arg in request.args:
             if arg.type == "new_id" and arg.interface is None:
                 source += (
-                    "  wayland_payload_encoder_write_string(encoder, %s_interface);\n"
+                    "  wayland_message_encoder_write_string(encoder, %s_interface);\n"
                     % arg.name
                 )
                 source += (
-                    "  wayland_payload_encoder_write_uint(encoder, %s_version);\n"
+                    "  wayland_message_encoder_write_uint(encoder, %s_version);\n"
                     % arg.name
                 )
-            source += "  wayland_payload_encoder_write_%s(encoder, %s);\n" % (
+            source += "  wayland_message_encoder_write_%s(encoder, %s);\n" % (
                 arg.type,
                 arg.name,
             )
-        source += "  if (!wayland_payload_encoder_finish(encoder)) {\n"
+        source += "  if (!wayland_message_encoder_finish(encoder)) {\n"
         source += "    // FIXME\n"
         source += "  }\n"
         source += "\n"
-        source += (
-            "  wayland_client_send_request(self->client, self->id, %d, encoder);\n"
-            % code
-        )
+        source += "  wayland_client_send_message(self->client, encoder);\n"
         source += "\n"
-        source += "  wayland_payload_encoder_unref(encoder);\n"
+        source += "  wayland_message_encoder_unref(encoder);\n"
         source += "}\n"
 
     open(header_path, "w").write(header)

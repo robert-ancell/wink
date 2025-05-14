@@ -40,10 +40,10 @@ SOURCES = main.c \
           socket_server.c \
           wayland_client.c \
           wayland_message_decoder.c \
-          wayland_payload_decoder.c \
-          wayland_payload_encoder.c \
+          wayland_message_encoder.c \
           wayland_server.c \
           wayland_server_client.c \
+          wayland_stream_decoder.c \
           wayland_toplevel.c
 GENERATED_SOURCES = $(WAYLAND_SERVER_SOURCES) \
                     $(XDG_SHELL_SERVER_SOURCES) \

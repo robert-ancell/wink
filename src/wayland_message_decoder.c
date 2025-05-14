@@ -1,39 +1,32 @@
-#include <assert.h>
 #include <stdbool.h>
 #include <stdlib.h>
 
 #include "wayland_message_decoder.h"
 
-#define BUFFER_LENGTH 1024
-
 struct _WaylandMessageDecoder {
-  WaylandMessageDecoderMessageCallback message_callback;
-  void *user_data;
-  uint8_t buffer[BUFFER_LENGTH];
-  size_t buffer_used;
+  const uint8_t *data;
+  size_t data_length;
+  size_t offset;
+  uint32_t id;
+  uint16_t code;
+  bool error;
 };
 
-// Copy [data] into the buffer so it is [n_required] bytes long.
-static void buffer_data(WaylandMessageDecoder *self, const uint8_t *data,
-                        size_t data_length, size_t *data_offset,
-                        size_t n_required) {
-  if (n_required > BUFFER_LENGTH) {
-    n_required = BUFFER_LENGTH;
-  }
-
-  while (self->buffer_used < n_required) {
-    self->buffer[self->buffer_used] = data[*data_offset];
-    self->buffer_used++;
-    (*data_offset)++;
-  }
-}
-
-WaylandMessageDecoder *wayland_message_decoder_new(
-    WaylandMessageDecoderMessageCallback message_callback, void *user_data) {
+WaylandMessageDecoder *wayland_message_decoder_new(const uint8_t *data,
+                                                   size_t data_length) {
   WaylandMessageDecoder *self = malloc(sizeof(WaylandMessageDecoder));
-  self->message_callback = message_callback;
-  self->user_data = user_data;
-  self->buffer_used = 0;
+  self->data = data;
+  self->data_length = data_length;
+  self->offset = 0;
+  self->error = false;
+
+  self->id = wayland_message_decoder_read_uint(self);
+  uint32_t length_and_code = wayland_message_decoder_read_uint(self);
+  self->code = length_and_code & 0xffff;
+  uint16_t length = length_and_code >> 16;
+  if (length != data_length) {
+    self->error = true;
+  }
 
   return self;
 }
@@ -48,64 +41,81 @@ void wayland_message_decoder_unref(WaylandMessageDecoder *self) {
   // FIXME
 }
 
-void wayland_message_decoder_write(WaylandMessageDecoder *self,
-                                   const uint8_t *data, size_t data_length) {
-  size_t total_data_length = self->buffer_used + data_length;
+uint32_t wayland_message_decoder_get_id(WaylandMessageDecoder *self) {
+  return self->id;
+}
 
-  size_t data_offset = 0;
-  while (data_offset + 8 <= total_data_length) {
-    // Copy over data for header
-    if (self->buffer_used > 0 && self->buffer_used < 8) {
-      buffer_data(self, data, data_length, &data_offset, 8);
-    }
+uint16_t wayland_message_decoder_get_code(WaylandMessageDecoder *self) {
+  return self->code;
+}
 
-    // Read from buffer if full, otherwise directly from supplied data.
-    const uint8_t *read_data;
-    size_t read_data_length;
-    if (self->buffer_used > 0) {
-      read_data = self->buffer;
-      read_data_length = self->buffer_used;
-    } else {
-      read_data = data + data_offset;
-      read_data_length = data_length - data_offset;
-    }
+int32_t wayland_message_decoder_read_int(WaylandMessageDecoder *self) {
+  if (self->offset + 4 > self->data_length) {
+    self->error = true;
+    return 0;
+  }
+  int32_t value = *(int32_t *)(self->data + self->offset);
+  self->offset += 4;
+  return value;
+}
 
-    uint32_t *header = (uint32_t *)read_data;
-    uint32_t length_code = header[1];
-    uint16_t length = length_code >> 16;
+uint32_t wayland_message_decoder_read_uint(WaylandMessageDecoder *self) {
+  if (self->offset + 4 > self->data_length) {
+    self->error = true;
+    return 0;
+  }
+  uint32_t value = *(uint32_t *)(self->data + self->offset);
+  self->offset += 4;
+  return value;
+}
 
-    if (length < 8) {
-      // FIXME: Invalid
-      break;
-    }
+const char *wayland_message_decoder_read_string(WaylandMessageDecoder *self) {
+  uint32_t length = wayland_message_decoder_read_uint(self);
+  if (self->error || self->offset + length + 1 > self->data_length) {
+    return "";
+  }
+  const char *value = (const char *)(self->data + self->offset);
+  // Check nul terminated
+  if (value[length - 1] != '\0') {
+    self->error = true;
+    return "";
+  }
+  self->offset += length;
+  // Skip alignment
+  while (self->offset % 4 != 0) {
+    self->offset++;
+  }
+  return value;
+}
 
-    // Copy over payload if using buffering.
-    if (self->buffer_used > 0) {
-      buffer_data(self, data, data_length, &data_offset, length);
-      read_data_length = self->buffer_used;
-    }
+uint32_t wayland_message_decoder_read_object(WaylandMessageDecoder *self) {
+  return wayland_message_decoder_read_uint(self);
+}
 
-    if (length > read_data_length) {
-      break;
-    }
+uint32_t wayland_message_decoder_read_new_id(WaylandMessageDecoder *self) {
+  return wayland_message_decoder_read_uint(self);
+}
 
-    uint32_t id = header[0];
-    uint16_t code = header[1] & 0xffff;
-    const uint8_t *payload = read_data + 8;
-    WaylandPayloadDecoder *decoder =
-        wayland_payload_decoder_new(payload, length - 8);
-    self->message_callback(id, code, decoder, self->user_data);
-    wayland_payload_decoder_unref(decoder);
+uint32_t *wayland_message_decoder_read_array(WaylandMessageDecoder *self) {
+  // FIXME
+  return NULL;
+}
 
-    // If was buffered, buffer is now empty.
-    if (self->buffer_used > 0) {
-      self->buffer_used = 0;
-    } else {
-      data_offset += length;
-    }
+int wayland_message_decoder_read_fd(WaylandMessageDecoder *self) {
+  // FIXME
+  return -1;
+}
+
+bool wayland_message_decoder_finish(WaylandMessageDecoder *self) {
+  // Error occurred during decoding.
+  if (self->error) {
+    return false;
   }
 
-  // Copy remaining unused data into buffer.
-  buffer_data(self, data, data_length, &data_offset, data_length - data_offset);
-  assert(data_offset == data_length);
+  // Unused data.
+  if (self->offset != self->data_length) {
+    return false;
+  }
+
+  return true;
 }

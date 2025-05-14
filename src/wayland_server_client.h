@@ -4,13 +4,13 @@
 #include <stdint.h>
 
 #include "main_loop.h"
-#include "wayland_payload_decoder.h"
-#include "wayland_payload_encoder.h"
+#include "wayland_message_decoder.h"
+#include "wayland_message_encoder.h"
 
 typedef struct _WaylandServerClient WaylandServerClient;
 
 typedef void (*WaylandServerClientRequestCallback)(
-    uint16_t code, WaylandPayloadDecoder *decoder, void *user_data);
+    WaylandMessageDecoder *decoder, void *user_data);
 
 WaylandServerClient *wayland_server_client_new(MainLoop *loop, int fd);
 
@@ -22,6 +22,5 @@ void wayland_server_client_add_object(
     WaylandServerClient *self, uint32_t id,
     WaylandServerClientRequestCallback request_callback, void *user_data);
 
-void wayland_server_client_send_event(WaylandServerClient *self, uint32_t id,
-                                      uint16_t code,
-                                      WaylandPayloadEncoder *encoder);
+void wayland_server_client_send_message(WaylandServerClient *self,
+                                        WaylandMessageEncoder *encoder);
