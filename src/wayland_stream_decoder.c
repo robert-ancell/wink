@@ -13,6 +13,7 @@ struct _WaylandStreamDecoder {
   ref_t ref;
   Fd *fd;
   WaylandStreamDecoderMessageCallback message_callback;
+  WaylandStreamDecoderCloseCallback close_callback;
   void *user_data;
   void (*user_data_unref)(void *);
   uint8_t buffer[BUFFER_LENGTH];
@@ -73,7 +74,7 @@ static void process_data(WaylandStreamDecoder *self, const uint8_t *data,
 
     WaylandMessageDecoder *decoder =
         wayland_message_decoder_new(read_data, length);
-    self->message_callback(decoder, self->user_data);
+    self->message_callback(self, decoder, self->user_data);
     wayland_message_decoder_unref(decoder);
 
     // If was buffered, buffer is now empty.
@@ -89,12 +90,17 @@ static void process_data(WaylandStreamDecoder *self, const uint8_t *data,
   assert(data_offset == data_length);
 }
 
-static void read_cb(void *user_data) {
+static void read_cb(MainLoop *loop, void *user_data) {
   WaylandStreamDecoder *self = user_data;
 
   uint8_t data[1024];
   ssize_t data_length = read(fd_get(self->fd), data, 1024);
   if (data_length == -1) {
+    return;
+  }
+
+  if (data_length == 0) {
+    self->close_callback(self, self->user_data);
     return;
   }
 
@@ -104,6 +110,7 @@ static void read_cb(void *user_data) {
 WaylandStreamDecoder *
 wayland_stream_decoder_new(MainLoop *loop, Fd *fd,
                            WaylandStreamDecoderMessageCallback message_callback,
+                           WaylandStreamDecoderCloseCallback close_callback,
                            void *user_data, void (*user_data_unref)(void *)) {
   WaylandStreamDecoder *self = malloc(sizeof(WaylandStreamDecoder));
   ref_init(&self->ref);

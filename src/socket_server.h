@@ -6,7 +6,8 @@ typedef struct _SocketServer SocketServer;
 #include "main_loop.h"
 #include <stdbool.h>
 
-typedef void (*SocketServerConnectCallback)(Fd *fd, void *user_data);
+typedef void (*SocketServerConnectCallback)(SocketServer *self, Fd *fd,
+                                            void *user_data);
 
 SocketServer *socket_server_new(MainLoop *loop,
                                 SocketServerConnectCallback connect_callback,

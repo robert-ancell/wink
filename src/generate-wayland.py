@@ -210,7 +210,7 @@ def generate_server(interface):
     source += "\n"
     source += '#include "%s"\n' % header_path
     source += "\n"
-    header += '#include "ref.h"\n'
+    source += '#include "ref.h"\n'
     source += "\n"
     source += "struct _%s {\n" % class_name
     source += "  ref_t ref;\n"
@@ -262,7 +262,7 @@ def generate_server(interface):
         source += "}\n"
     source += "\n"
     source += (
-        "static void %s_request_cb(WaylandMessageDecoder *decoder, void *user_data) {\n"
+        "static void %s_request_cb(WaylandServerClient *client, WaylandMessageDecoder *decoder, void *user_data) {\n"
         % interface.name
     )
     if len(interface.requests) > 0:
@@ -425,7 +425,7 @@ def generate_client(interface):
     source += "\n"
     source += '#include "%s"\n' % header_path
     source += "\n"
-    header += '#include "ref.h"\n'
+    source += '#include "ref.h"\n'
     source += "\n"
     source += "struct _%s {\n" % class_name
     source += "  ref_t ref;\n"
@@ -477,7 +477,7 @@ def generate_client(interface):
         source += "}\n"
     source += "\n"
     source += (
-        "static void %s_event_cb(WaylandMessageDecoder *decoder, void *user_data) {\n"
+        "static void %s_event_cb(WaylandClient *client, WaylandMessageDecoder *decoder, void *user_data) {\n"
         % interface.name
     )
     if len(interface.events) > 0:

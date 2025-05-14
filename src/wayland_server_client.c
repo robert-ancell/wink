@@ -32,6 +32,9 @@ typedef struct {
 
 struct _WaylandServerClient {
   ref_t ref;
+  WaylandServerClientDisconnectCallback disconnect_callback;
+  void *user_data;
+  void (*user_data_unref)(void *);
   WaylandStreamDecoder *stream_decoder;
   WaylandStreamEncoder *stream_encoder;
   WaylandObject *objects;
@@ -384,7 +387,8 @@ static WaylandObject *find_object(WaylandServerClient *self, uint32_t id) {
   return NULL;
 }
 
-static void message_cb(WaylandMessageDecoder *message, void *user_data) {
+static void message_cb(WaylandStreamDecoder *decoder,
+                       WaylandMessageDecoder *message, void *user_data) {
   WaylandServerClient *self = user_data;
 
   uint32_t id = wayland_message_decoder_get_id(message);
@@ -395,14 +399,25 @@ static void message_cb(WaylandMessageDecoder *message, void *user_data) {
     return;
   }
 
-  o->request_callback(message, o->user_data);
+  o->request_callback(self, message, o->user_data);
 }
 
-WaylandServerClient *wayland_server_client_new(MainLoop *loop, Fd *fd) {
+static void close_cb(WaylandStreamDecoder *decoder, void *user_data) {
+  WaylandServerClient *self = user_data;
+  self->disconnect_callback(self, self->user_data);
+}
+
+WaylandServerClient *wayland_server_client_new(
+    MainLoop *loop, Fd *fd,
+    WaylandServerClientDisconnectCallback disconnect_callback, void *user_data,
+    void (*user_data_unref)(void *)) {
   WaylandServerClient *self = malloc(sizeof(WaylandServerClient));
   ref_init(&self->ref);
+  self->disconnect_callback = disconnect_callback;
+  self->user_data = user_data;
+  self->user_data_unref = self->user_data_unref;
   self->stream_decoder =
-      wayland_stream_decoder_new(loop, fd, message_cb, self, NULL);
+      wayland_stream_decoder_new(loop, fd, message_cb, close_cb, self, NULL);
   self->stream_encoder = wayland_stream_encoder_new(fd);
   self->objects = NULL;
   self->objects_length = 0;
@@ -420,6 +435,9 @@ WaylandServerClient *wayland_server_client_ref(WaylandServerClient *self) {
 
 void wayland_server_client_unref(WaylandServerClient *self) {
   if (ref_dec(&self->ref)) {
+    if (self->user_data_unref) {
+      self->user_data_unref(self->user_data);
+    }
     wayland_stream_decoder_unref(self->stream_decoder);
     wayland_stream_encoder_unref(self->stream_encoder);
     for (size_t i = 0; i < self->objects_length; i++) {

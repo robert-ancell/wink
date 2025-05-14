@@ -11,25 +11,34 @@ typedef struct _WaylandClient WaylandClient;
 #include "wl_shm_client.h"
 #include "xdg_wm_base_client.h"
 
-typedef void (*WaylandClientEventCallback)(WaylandMessageDecoder *payload,
+typedef void (*WaylandClientConnectedCallback)(WaylandClient *self,
+                                               void *user_data);
+
+typedef void (*WaylandClientCloseCallback)(WaylandClient *self,
                                            void *user_data);
 
-typedef void (*WaylandClientDeleteCallback)(void *user_data);
+typedef void (*WaylandClientEventCallback)(WaylandClient *self,
+                                           WaylandMessageDecoder *payload,
+                                           void *user_data);
 
-typedef void (*WaylandClientConnectedCallback)(void *user_data);
+typedef void (*WaylandClientDeleteCallback)(WaylandClient *self,
+                                            void *user_data);
 
-typedef void (*WaylandClientSyncDoneCallback)(uint32_t callback_data,
+typedef void (*WaylandClientSyncDoneCallback)(WaylandClient *self,
+                                              uint32_t callback_data,
                                               void *user_data);
 
-WaylandClient *wayland_client_new(MainLoop *loop);
+WaylandClient *
+wayland_client_new(MainLoop *loop,
+                   WaylandClientConnectedCallback connected_callback,
+                   WaylandClientCloseCallback close_callback, void *user_data,
+                   void (*user_data_unref)(void *));
 
 WaylandClient *wayland_client_ref(WaylandClient *self);
 
 void wayland_client_unref(WaylandClient *self);
 
-bool wayland_client_connect(WaylandClient *self, const char *display,
-                            WaylandClientConnectedCallback connected_callback,
-                            void *user_data, void (*user_data_unref)(void *));
+bool wayland_client_connect(WaylandClient *self, const char *display);
 
 uint32_t wayland_client_add_object(WaylandClient *self,
                                    WaylandClientEventCallback event_callback,

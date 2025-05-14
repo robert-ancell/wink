@@ -1,8 +1,8 @@
+typedef struct _WaylandToplevel WaylandToplevel;
+
 #pragma once
 
 #include "wayland_client.h"
-
-typedef struct _WaylandToplevel WaylandToplevel;
 
 WaylandToplevel *wayland_toplevel_new(WaylandClient *client);
 

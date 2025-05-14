@@ -47,7 +47,8 @@ SOURCES = fd.c \
           wayland_server_client.c \
           wayland_stream_decoder.c \
           wayland_stream_encoder.c \
-          wayland_toplevel.c
+          wayland_toplevel.c \
+          wink_server.c
 GENERATED_SOURCES = $(WAYLAND_SERVER_SOURCES) \
                     $(XDG_SHELL_SERVER_SOURCES) \
                     $(LINUX_DMABUF_SERVER_SOURCES) \

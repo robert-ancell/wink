@@ -1,3 +1,5 @@
+typedef struct _WaylandServerClient WaylandServerClient;
+
 #pragma once
 
 #include <stdbool.h>
@@ -7,12 +9,16 @@
 #include "wayland_message_decoder.h"
 #include "wayland_message_encoder.h"
 
-typedef struct _WaylandServerClient WaylandServerClient;
+typedef void (*WaylandServerClientDisconnectCallback)(WaylandServerClient *self,
+                                                      void *user_data);
 
 typedef void (*WaylandServerClientRequestCallback)(
-    WaylandMessageDecoder *decoder, void *user_data);
+    WaylandServerClient *self, WaylandMessageDecoder *decoder, void *user_data);
 
-WaylandServerClient *wayland_server_client_new(MainLoop *loop, Fd *fd);
+WaylandServerClient *wayland_server_client_new(
+    MainLoop *loop, Fd *fd,
+    WaylandServerClientDisconnectCallback disconnect_callback, void *user_data,
+    void (*user_data_unref)(void *));
 
 WaylandServerClient *wayland_server_client_ref(WaylandServerClient *self);
 

@@ -4,7 +4,7 @@ typedef struct _MainLoop MainLoop;
 
 #include "fd.h"
 
-typedef void (*MainLoopReadCallback)(void *user_data);
+typedef void (*MainLoopReadCallback)(MainLoop *self, void *user_data);
 
 MainLoop *main_loop_new();
 

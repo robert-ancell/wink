@@ -69,7 +69,7 @@ void main_loop_run(MainLoop *self) {
 
     for (size_t i = 0; i < self->fds_length; i++) {
       if (self->fds[i].revents & POLLIN) {
-        self->callbacks[i].read_callback(self->callbacks[i].user_data);
+        self->callbacks[i].read_callback(self, self->callbacks[i].user_data);
       }
     }
   }

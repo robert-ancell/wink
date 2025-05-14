@@ -28,6 +28,10 @@ typedef struct {
 
 struct _WaylandClient {
   ref_t ref;
+  WaylandClientConnectedCallback connected_callback;
+  WaylandClientCloseCallback close_callback;
+  void *user_data;
+  void (*user_data_unref)(void *);
   MainLoop *loop;
   SocketClient *socket;
   WaylandStreamDecoder *stream_decoder;
@@ -43,16 +47,11 @@ struct _WaylandClient {
 };
 
 typedef struct {
+  WaylandClient *self;
   WaylandClientSyncDoneCallback done_callback;
   void *user_data;
   void (*user_data_unref)(void *);
 } CallbackData;
-
-typedef struct {
-  WaylandClientConnectedCallback connected_callback;
-  void *user_data;
-  void (*user_data_unref)(void *);
-} ConnectedData;
 
 static uint32_t get_next_id(WaylandClient *self) { return self->next_id++; }
 
@@ -81,7 +80,7 @@ static WlShmClientEventCallbacks shm_callbacks = {.format = format_cb};
 
 static void callback_done_cb(uint32_t callback_data, void *user_data) {
   CallbackData *data = user_data;
-  data->done_callback(callback_data, data->user_data);
+  data->done_callback(data->self, callback_data, data->user_data);
 }
 
 static WlCallbackClientEventCallbacks callback_callbacks = {
@@ -101,7 +100,7 @@ static void delete_id_cb(uint32_t id, void *user_data) {
   }
 
   if (o->delete_callback) {
-    o->delete_callback(o->user_data);
+    o->delete_callback(self, o->user_data);
   }
 
   // FIXME: Binary search and reuse lookup from above.
@@ -148,7 +147,8 @@ static void global_remove_cb(uint32_t name, void *user_data) {}
 static WlRegistryClientEventCallbacks registry_callbacks = {
     .global = global_cb, .global_remove = global_remove_cb};
 
-static void message_cb(WaylandMessageDecoder *message, void *user_data) {
+static void message_cb(WaylandStreamDecoder *decoder,
+                       WaylandMessageDecoder *message, void *user_data) {
   WaylandClient *self = user_data;
 
   uint32_t id = wayland_message_decoder_get_id(message);
@@ -159,21 +159,30 @@ static void message_cb(WaylandMessageDecoder *message, void *user_data) {
     return;
   }
 
-  o->event_callback(message, o->user_data);
+  o->event_callback(self, message, o->user_data);
 }
 
-static void registry_done_cb(uint32_t callback_data, void *user_data) {
-  ConnectedData *data = user_data;
-  data->connected_callback(data->user_data);
-  if (data->user_data_unref) {
-    data->user_data_unref(data->user_data);
-  }
-  free(data);
+static void close_cb(WaylandStreamDecoder *decoder, void *user_data) {
+  WaylandClient *self = user_data;
+  self->close_callback(self, self->user_data);
 }
 
-WaylandClient *wayland_client_new(MainLoop *loop) {
+static void registry_done_cb(WaylandClient *self, uint32_t callback_data,
+                             void *user_data) {
+  self->connected_callback(self, self->user_data);
+}
+
+WaylandClient *
+wayland_client_new(MainLoop *loop,
+                   WaylandClientConnectedCallback connected_callback,
+                   WaylandClientCloseCallback close_callback, void *user_data,
+                   void (*user_data_unref)(void *)) {
   WaylandClient *self = malloc(sizeof(WaylandClient));
   ref_init(&self->ref);
+  self->connected_callback = connected_callback;
+  self->close_callback = close_callback;
+  self->user_data = user_data;
+  self->user_data_unref = user_data_unref;
   self->loop = main_loop_ref(loop);
   self->socket = socket_client_new();
   self->stream_encoder = NULL;
@@ -196,6 +205,9 @@ WaylandClient *wayland_client_ref(WaylandClient *self) {
 
 void wayland_client_unref(WaylandClient *self) {
   if (ref_dec(&self->ref)) {
+    if (self->user_data_unref) {
+      self->user_data_unref(self->user_data);
+    }
     main_loop_unref(self->loop);
     socket_client_unref(self->socket);
     if (self->stream_decoder) {
@@ -230,9 +242,7 @@ void wayland_client_unref(WaylandClient *self) {
   }
 }
 
-bool wayland_client_connect(WaylandClient *self, const char *display,
-                            WaylandClientConnectedCallback connected_callback,
-                            void *user_data, void (*user_data_unref)(void *)) {
+bool wayland_client_connect(WaylandClient *self, const char *display) {
   if (display == NULL) {
     display = getenv("WAYLAND_DISPLAY");
   }
@@ -254,19 +264,15 @@ bool wayland_client_connect(WaylandClient *self, const char *display,
 
   Fd *fd = socket_client_get_fd(self->socket);
   self->stream_encoder = wayland_stream_encoder_new(fd);
-  self->stream_decoder =
-      wayland_stream_decoder_new(self->loop, fd, message_cb, self, NULL);
+  self->stream_decoder = wayland_stream_decoder_new(self->loop, fd, message_cb,
+                                                    close_cb, self, NULL);
 
   self->display = wl_display_client_new(self, &display_callbacks, self, NULL);
   self->registry =
       wl_registry_client_new(self, &registry_callbacks, self, NULL);
   wl_display_client_get_registry(self->display,
                                  wl_registry_client_get_id(self->registry));
-  ConnectedData *data = malloc(sizeof(ConnectedData));
-  data->connected_callback = connected_callback;
-  data->user_data = user_data;
-  data->user_data_unref = user_data_unref;
-  wayland_client_sync(self, registry_done_cb, data, free);
+  wayland_client_sync(self, registry_done_cb, NULL, NULL);
 
   return true;
 }
@@ -299,6 +305,7 @@ void wayland_client_sync(WaylandClient *self,
                          void *user_data, void (*user_data_unref)(void *)) {
 
   CallbackData *data = malloc(sizeof(CallbackData));
+  data->self = self;
   data->done_callback = done_callback;
   data->user_data = user_data;
   data->user_data_unref = user_data_unref;

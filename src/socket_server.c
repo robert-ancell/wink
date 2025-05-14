@@ -17,7 +17,7 @@ struct _SocketServer {
   void (*user_data_unref)(void *);
 };
 
-static void read_cb(void *user_data) {
+static void read_cb(MainLoop *loop, void *user_data) {
   SocketServer *self = user_data;
 
   struct sockaddr_un address;
@@ -29,7 +29,7 @@ static void read_cb(void *user_data) {
   }
 
   Fd *fd_object = fd_new(fd);
-  self->connect_callback(fd_object, self->user_data);
+  self->connect_callback(self, fd_object, self->user_data);
   fd_unref(fd_object);
 }
 

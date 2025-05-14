@@ -1,3 +1,5 @@
+typedef struct _WaylandMessageEncoder WaylandMessageEncoder;
+
 #pragma once
 
 #include <stdbool.h>
@@ -6,8 +8,6 @@
 
 #include "fd.h"
 #include "main_loop.h"
-
-typedef struct _WaylandMessageEncoder WaylandMessageEncoder;
 
 WaylandMessageEncoder *wayland_message_encoder_new(uint32_t id, uint16_t code);
 
