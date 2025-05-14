@@ -1,12 +1,14 @@
 #include <assert.h>
 #include <stdbool.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 #include "wayland_stream_decoder.h"
 
 #define BUFFER_LENGTH 1024
 
 struct _WaylandStreamDecoder {
+  int fd;
   WaylandStreamDecoderMessageCallback message_callback;
   void *user_data;
   uint8_t buffer[BUFFER_LENGTH];
@@ -28,28 +30,8 @@ static void buffer_data(WaylandStreamDecoder *self, const uint8_t *data,
   }
 }
 
-WaylandStreamDecoder *
-wayland_stream_decoder_new(WaylandStreamDecoderMessageCallback message_callback,
-                           void *user_data) {
-  WaylandStreamDecoder *self = malloc(sizeof(WaylandStreamDecoder));
-  self->message_callback = message_callback;
-  self->user_data = user_data;
-  self->buffer_used = 0;
-
-  return self;
-}
-
-WaylandStreamDecoder *wayland_stream_decoder_ref(WaylandStreamDecoder *self) {
-  // FIXME
-  return self;
-}
-
-void wayland_stream_decoder_unref(WaylandStreamDecoder *self) {
-  // FIXME
-}
-
-void wayland_stream_decoder_write(WaylandStreamDecoder *self,
-                                  const uint8_t *data, size_t data_length) {
+static void process_data(WaylandStreamDecoder *self, const uint8_t *data,
+                         size_t data_length) {
   size_t data_offset = 0;
   while (true) {
     // Copy over data for header
@@ -101,4 +83,40 @@ void wayland_stream_decoder_write(WaylandStreamDecoder *self,
   // Copy remaining unused data into buffer.
   buffer_data(self, data, data_length, &data_offset, data_length - data_offset);
   assert(data_offset == data_length);
+}
+
+static void read_cb(void *user_data) {
+  WaylandStreamDecoder *self = user_data;
+
+  uint8_t data[1024];
+  ssize_t data_length = read(self->fd, data, 1024);
+  if (data_length == -1) {
+    return;
+  }
+
+  process_data(self, data, data_length);
+}
+
+WaylandStreamDecoder *
+wayland_stream_decoder_new(MainLoop *loop, int fd,
+                           WaylandStreamDecoderMessageCallback message_callback,
+                           void *user_data) {
+  WaylandStreamDecoder *self = malloc(sizeof(WaylandStreamDecoder));
+  self->fd = fd;
+  self->message_callback = message_callback;
+  self->user_data = user_data;
+  self->buffer_used = 0;
+
+  main_loop_add_fd(loop, fd, read_cb, self, NULL);
+
+  return self;
+}
+
+WaylandStreamDecoder *wayland_stream_decoder_ref(WaylandStreamDecoder *self) {
+  // FIXME
+  return self;
+}
+
+void wayland_stream_decoder_unref(WaylandStreamDecoder *self) {
+  // FIXME
 }

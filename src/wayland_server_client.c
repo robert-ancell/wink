@@ -2,7 +2,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 
 #include "wayland_server_client.h"
 
@@ -30,7 +29,6 @@ typedef struct {
 } WaylandObject;
 
 struct _WaylandServerClient {
-  int fd;
   WaylandStreamDecoder *stream_decoder;
   WaylandStreamEncoder *stream_encoder;
   WaylandObject *objects;
@@ -397,27 +395,12 @@ static void message_cb(WaylandMessageDecoder *message, void *user_data) {
   o->request_callback(message, o->user_data);
 }
 
-static void read_cb(void *user_data) {
-  WaylandServerClient *self = user_data;
-
-  uint8_t data[1024];
-  ssize_t data_length = read(self->fd, data, 1024);
-  if (data_length == -1) {
-    return;
-  }
-
-  wayland_stream_decoder_write(self->stream_decoder, data, data_length);
-}
-
 WaylandServerClient *wayland_server_client_new(MainLoop *loop, int fd) {
   WaylandServerClient *self = malloc(sizeof(WaylandServerClient));
-  self->fd = fd;
-  self->stream_decoder = wayland_stream_decoder_new(message_cb, self);
+  self->stream_decoder = wayland_stream_decoder_new(loop, fd, message_cb, self);
   self->stream_encoder = wayland_stream_encoder_new(fd);
   self->objects = NULL;
   self->objects_length = 0;
-
-  main_loop_add_fd(loop, fd, read_cb, self, NULL);
 
   wl_display_server_new(self, WL_DISPLAY_ID, &wl_display_request_callbacks,
                         self, NULL);

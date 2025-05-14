@@ -2,7 +2,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 
 #include "wayland_client.h"
 
@@ -161,18 +160,6 @@ static void message_cb(WaylandMessageDecoder *message, void *user_data) {
   o->event_callback(message, o->user_data);
 }
 
-static void read_cb(void *user_data) {
-  WaylandClient *self = user_data;
-
-  uint8_t data[1024];
-  ssize_t data_length = read(socket_client_get_fd(self->socket), data, 1024);
-  if (data_length == -1) {
-    return;
-  }
-
-  wayland_stream_decoder_write(self->stream_decoder, data, data_length);
-}
-
 static void registry_done_cb(uint32_t callback_data, void *user_data) {
   ConnectedData *data = user_data;
   data->connected_callback(data->user_data);
@@ -186,7 +173,8 @@ WaylandClient *wayland_client_new(MainLoop *loop) {
   WaylandClient *self = malloc(sizeof(WaylandClient));
   self->loop = main_loop_ref(loop);
   self->socket = socket_client_new();
-  self->stream_decoder = wayland_stream_decoder_new(message_cb, self);
+  self->stream_encoder = NULL;
+  self->stream_decoder = NULL;
   self->next_id = 1;
   self->objects = NULL;
   self->objects_length = 0;
@@ -231,7 +219,8 @@ bool wayland_client_connect(WaylandClient *self, const char *display,
 
   int fd = socket_client_get_fd(self->socket);
   self->stream_encoder = wayland_stream_encoder_new(fd);
-  main_loop_add_fd(self->loop, fd, read_cb, self, NULL);
+  self->stream_decoder =
+      wayland_stream_decoder_new(self->loop, fd, message_cb, self);
 
   self->display = wl_display_client_new(self, &display_callbacks, self, NULL);
   self->registry =
