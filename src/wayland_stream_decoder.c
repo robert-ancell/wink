@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 
+#include "fd.h"
 #include "ref.h"
 #include "wayland_stream_decoder.h"
 
@@ -10,7 +11,7 @@
 
 struct _WaylandStreamDecoder {
   ref_t ref;
-  int fd;
+  Fd *fd;
   WaylandStreamDecoderMessageCallback message_callback;
   void *user_data;
   void (*user_data_unref)(void *);
@@ -92,7 +93,7 @@ static void read_cb(void *user_data) {
   WaylandStreamDecoder *self = user_data;
 
   uint8_t data[1024];
-  ssize_t data_length = read(self->fd, data, 1024);
+  ssize_t data_length = read(fd_get(self->fd), data, 1024);
   if (data_length == -1) {
     return;
   }
@@ -101,12 +102,12 @@ static void read_cb(void *user_data) {
 }
 
 WaylandStreamDecoder *
-wayland_stream_decoder_new(MainLoop *loop, int fd,
+wayland_stream_decoder_new(MainLoop *loop, Fd *fd,
                            WaylandStreamDecoderMessageCallback message_callback,
                            void *user_data, void (*user_data_unref)(void *)) {
   WaylandStreamDecoder *self = malloc(sizeof(WaylandStreamDecoder));
   ref_init(&self->ref);
-  self->fd = fd;
+  self->fd = fd_ref(fd);
   self->message_callback = message_callback;
   self->user_data = user_data;
   self->user_data_unref = user_data_unref;
@@ -124,6 +125,7 @@ WaylandStreamDecoder *wayland_stream_decoder_ref(WaylandStreamDecoder *self) {
 
 void wayland_stream_decoder_unref(WaylandStreamDecoder *self) {
   if (ref_dec(&self->ref)) {
+    fd_unref(self->fd);
     if (self->user_data_unref) {
       self->user_data_unref(self->user_data);
     }

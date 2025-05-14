@@ -252,7 +252,7 @@ bool wayland_client_connect(WaylandClient *self, const char *display,
     return false;
   }
 
-  int fd = socket_client_get_fd(self->socket);
+  Fd *fd = socket_client_get_fd(self->socket);
   self->stream_encoder = wayland_stream_encoder_new(fd);
   self->stream_decoder =
       wayland_stream_decoder_new(self->loop, fd, message_cb, self, NULL);

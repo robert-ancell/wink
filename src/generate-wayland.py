@@ -129,11 +129,11 @@ def type_to_native(type):
         "int": "int32_t",
         "uint": "uint32_t",
         "fixed": "double",
-        "string": "const char *",
+        "string": "const char*",
         "object": "uint32_t",
         "new_id": "uint32_t",
         "array": "uint32_t*",
-        "fd": "int",
+        "fd": "Fd*",
     }[type]
 
 
@@ -256,6 +256,9 @@ def generate_server(interface):
             request.name,
             ",".join(args),
         )
+        for arg in request.args:
+            if arg.type == "fd":
+                source += "  fd_unref(fd);\n"
         source += "}\n"
     source += "\n"
     source += (
@@ -468,6 +471,9 @@ def generate_client(interface):
             event.name,
             ",".join(args),
         )
+        for arg in event.args:
+            if arg.type == "fd":
+                source += "  fd_unref(fd);\n"
         source += "}\n"
     source += "\n"
     source += (

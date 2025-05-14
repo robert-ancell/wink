@@ -257,7 +257,7 @@ static WlShmPoolServerRequestCallbacks wl_shm_pool_request_callbacks = {
     .destroy = wl_shm_pool_destroy,
     .resize = wl_shm_pool_resize};
 
-static void wl_shm_create_pool(uint32_t id, int fd, int32_t size,
+static void wl_shm_create_pool(uint32_t id, Fd *fd, int32_t size,
                                void *user_data) {
   WaylandServerClient *self = user_data;
 
@@ -398,7 +398,7 @@ static void message_cb(WaylandMessageDecoder *message, void *user_data) {
   o->request_callback(message, o->user_data);
 }
 
-WaylandServerClient *wayland_server_client_new(MainLoop *loop, int fd) {
+WaylandServerClient *wayland_server_client_new(MainLoop *loop, Fd *fd) {
   WaylandServerClient *self = malloc(sizeof(WaylandServerClient));
   ref_init(&self->ref);
   self->stream_decoder =

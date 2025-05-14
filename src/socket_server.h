@@ -1,11 +1,12 @@
+typedef struct _SocketServer SocketServer;
+
 #pragma once
 
+#include "fd.h"
 #include "main_loop.h"
 #include <stdbool.h>
 
-typedef struct _SocketServer SocketServer;
-
-typedef void (*SocketServerConnectCallback)(int fd, void *user_data);
+typedef void (*SocketServerConnectCallback)(Fd *fd, void *user_data);
 
 SocketServer *socket_server_new(MainLoop *loop,
                                 SocketServerConnectCallback connect_callback,

@@ -12,7 +12,7 @@ struct _WaylandMessageEncoder {
   uint8_t data[1024];
   size_t data_length;
   size_t offset;
-  int *fds;
+  Fd **fds;
   size_t fds_length;
   bool error;
 };
@@ -40,6 +40,9 @@ wayland_message_encoder_ref(WaylandMessageEncoder *self) {
 
 void wayland_message_encoder_unref(WaylandMessageEncoder *self) {
   if (ref_dec(&self->ref)) {
+    for (size_t i = 0; i < self->fds_length; i++) {
+      fd_unref(self->fds[i]);
+    }
     free(self->fds);
     free(self);
   }
@@ -102,10 +105,10 @@ void wayland_message_encoder_write_array(WaylandMessageEncoder *self,
   // FIXME: Implement array support
 }
 
-void wayland_message_encoder_write_fd(WaylandMessageEncoder *self, int fd) {
+void wayland_message_encoder_write_fd(WaylandMessageEncoder *self, Fd *fd) {
   self->fds_length++;
   self->fds = realloc(self->fds, sizeof(int) * self->fds_length);
-  self->fds[self->fds_length - 1] = fd;
+  self->fds[self->fds_length - 1] = fd_ref(fd);
 }
 
 bool wayland_message_encoder_finish(WaylandMessageEncoder *self) {
@@ -129,7 +132,7 @@ size_t wayland_message_encoder_get_length(WaylandMessageEncoder *self) {
   return self->offset;
 }
 
-const int *wayland_message_encoder_get_fds(WaylandMessageEncoder *self) {
+Fd **wayland_message_encoder_get_fds(WaylandMessageEncoder *self) {
   return self->fds;
 }
 

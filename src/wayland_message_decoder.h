@@ -4,6 +4,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include "fd.h"
 #include "main_loop.h"
 
 typedef struct _WaylandMessageDecoder WaylandMessageDecoder;
@@ -31,6 +32,6 @@ uint32_t wayland_message_decoder_read_new_id(WaylandMessageDecoder *self);
 
 uint32_t *wayland_message_decoder_read_array(WaylandMessageDecoder *self);
 
-int wayland_message_decoder_read_fd(WaylandMessageDecoder *self);
+Fd *wayland_message_decoder_read_fd(WaylandMessageDecoder *self);
 
 bool wayland_message_decoder_finish(WaylandMessageDecoder *self);

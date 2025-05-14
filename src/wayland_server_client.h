@@ -12,7 +12,7 @@ typedef struct _WaylandServerClient WaylandServerClient;
 typedef void (*WaylandServerClientRequestCallback)(
     WaylandMessageDecoder *decoder, void *user_data);
 
-WaylandServerClient *wayland_server_client_new(MainLoop *loop, int fd);
+WaylandServerClient *wayland_server_client_new(MainLoop *loop, Fd *fd);
 
 WaylandServerClient *wayland_server_client_ref(WaylandServerClient *self);
 

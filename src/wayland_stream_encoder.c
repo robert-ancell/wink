@@ -2,7 +2,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/socket.h>
+#include <unistd.h>
 
+#include "fd.h"
 #include "ref.h"
 #include "wayland_stream_encoder.h"
 
@@ -10,13 +12,13 @@
 
 struct _WaylandStreamEncoder {
   ref_t ref;
-  int fd;
+  Fd *fd;
 };
 
-WaylandStreamEncoder *wayland_stream_encoder_new(int fd) {
+WaylandStreamEncoder *wayland_stream_encoder_new(Fd *fd) {
   WaylandStreamEncoder *self = malloc(sizeof(WaylandStreamEncoder));
   ref_init(&self->ref);
-  self->fd = fd;
+  self->fd = fd_ref(fd);
 
   return self;
 }
@@ -28,6 +30,7 @@ WaylandStreamEncoder *wayland_stream_encoder_ref(WaylandStreamEncoder *self) {
 
 void wayland_stream_encoder_unref(WaylandStreamEncoder *self) {
   if (ref_dec(&self->ref)) {
+    fd_unref(self->fd);
     free(self);
   }
 }
@@ -36,11 +39,11 @@ void wayland_stream_encoder_write(WaylandStreamEncoder *self,
                                   WaylandMessageEncoder *message) {
   const uint8_t *data = wayland_message_encoder_get_data(message);
   size_t data_length = wayland_message_encoder_get_length(message);
-  const int *fds = wayland_message_encoder_get_fds(message);
+  Fd **fds = wayland_message_encoder_get_fds(message);
   size_t fds_length = wayland_message_encoder_get_fds_length(message);
 
   if (fds_length == 0) {
-    assert(send(self->fd, data, data_length, 0) == data_length);
+    assert(send(fd_get(self->fd), data, data_length, 0) == data_length);
     return;
   }
 
@@ -63,7 +66,7 @@ void wayland_stream_encoder_write(WaylandStreamEncoder *self,
   cmsg->cmsg_len = CMSG_LEN(sizeof(int) * fds_length);
   int *cmsg_fds = (int *)CMSG_DATA(cmsg);
   for (size_t i = 0; i < fds_length; i++) {
-    cmsg_fds[i] = fds[i];
+    cmsg_fds[i] = dup(fd_get(fds[i]));
   }
-  assert(sendmsg(self->fd, &msg, 0) == data_length);
+  assert(sendmsg(fd_get(self->fd), &msg, 0) == data_length);
 }

@@ -107,9 +107,9 @@ uint32_t *wayland_message_decoder_read_array(WaylandMessageDecoder *self) {
   return NULL;
 }
 
-int wayland_message_decoder_read_fd(WaylandMessageDecoder *self) {
+Fd *wayland_message_decoder_read_fd(WaylandMessageDecoder *self) {
   // FIXME: Implement fd support
-  return -1;
+  return fd_new(-1);
 }
 
 bool wayland_message_decoder_finish(WaylandMessageDecoder *self) {

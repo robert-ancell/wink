@@ -11,7 +11,7 @@
 struct _SocketServer {
   ref_t ref;
   MainLoop *loop;
-  int fd;
+  Fd *fd;
   SocketServerConnectCallback connect_callback;
   void *user_data;
   void (*user_data_unref)(void *);
@@ -22,13 +22,15 @@ static void read_cb(void *user_data) {
 
   struct sockaddr_un address;
   socklen_t address_len = sizeof(address);
-  int fd = accept(self->fd, (struct sockaddr *)&address, &address_len);
+  int fd = accept(fd_get(self->fd), (struct sockaddr *)&address, &address_len);
   if (fd == -1) {
     // FIXME: handle error
     return;
   }
 
-  self->connect_callback(fd, self->user_data);
+  Fd *fd_object = fd_new(fd);
+  self->connect_callback(fd_object, self->user_data);
+  fd_unref(fd_object);
 }
 
 SocketServer *socket_server_new(MainLoop *loop,
@@ -38,7 +40,7 @@ SocketServer *socket_server_new(MainLoop *loop,
   SocketServer *self = malloc(sizeof(SocketServer));
   ref_init(&self->ref);
   self->loop = main_loop_ref(loop);
-  self->fd = -1;
+  self->fd = NULL;
   self->connect_callback = connect_callback;
   self->user_data = user_data;
   self->user_data_unref = user_data_unref;
@@ -61,10 +63,11 @@ void socket_server_unref(SocketServer *self) {
 }
 
 bool socket_server_run(SocketServer *self, const char *path) {
-  self->fd = socket(AF_UNIX, SOCK_STREAM, 0);
-  if (self->fd == -1) {
+  int fd = socket(AF_UNIX, SOCK_STREAM, 0);
+  if (fd == -1) {
     return false;
   }
+  self->fd = fd_new(fd);
 
   struct sockaddr_un address;
   memset(&address, 0, sizeof(address));
@@ -74,17 +77,19 @@ bool socket_server_run(SocketServer *self, const char *path) {
   //     path);
   // socklen_t address_length =
   //     offsetof(struct sockaddr_un, sun_path) + 1 + path_len;
-  // if (bind(self->fd, (struct sockaddr *)&address, address_length) == -1) {
+  // if (bind(fd_get(self->fd), (struct sockaddr *)&address, address_length) ==
+  // -1) {
   //   return false;
   // }
   snprintf(address.sun_path, sizeof(address.sun_path), "%s", path);
   unlink(path);
-  if (bind(self->fd, (struct sockaddr *)&address, sizeof(address)) == -1) {
+  if (bind(fd_get(self->fd), (struct sockaddr *)&address, sizeof(address)) ==
+      -1) {
     return false;
   }
 
   main_loop_add_fd(self->loop, self->fd, read_cb, self, NULL);
-  if (listen(self->fd, 1024) == -1) {
+  if (listen(fd_get(self->fd), 1024) == -1) {
     return false;
   }
 

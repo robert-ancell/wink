@@ -13,7 +13,7 @@ struct _WaylandServer {
   SocketServer *socket;
 };
 
-static void connect_cb(int fd, void *user_data) {
+static void connect_cb(Fd *fd, void *user_data) {
   WaylandServer *self = user_data;
 
   WaylandServerClient *client = wayland_server_client_new(self->loop, fd);
