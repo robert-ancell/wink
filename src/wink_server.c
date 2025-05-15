@@ -36,7 +36,7 @@ static void client_disconnected_cb(WaylandServer *server,
                                    WaylandServerClient *client,
                                    void *user_data) {
   // WinkServer *self = user_data;
-  // FIXME
+  printf("disconnect\n");
 }
 
 WinkServer *wink_server_new(MainLoop *loop) {

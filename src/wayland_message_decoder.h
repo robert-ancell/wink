@@ -7,10 +7,12 @@ typedef struct _WaylandMessageDecoder WaylandMessageDecoder;
 #include <stdint.h>
 
 #include "fd.h"
+#include "fd_list.h"
 #include "main_loop.h"
 
 WaylandMessageDecoder *wayland_message_decoder_new(const uint8_t *data,
-                                                   size_t data_length);
+                                                   size_t data_length,
+                                                   FdList *fd_list);
 
 WaylandMessageDecoder *wayland_message_decoder_ref(WaylandMessageDecoder *self);
 

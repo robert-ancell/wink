@@ -10,18 +10,21 @@ struct _WaylandMessageDecoder {
   const uint8_t *data;
   size_t data_length;
   size_t offset;
+  FdList *fd_list;
   uint32_t id;
   uint16_t code;
   bool error;
 };
 
 WaylandMessageDecoder *wayland_message_decoder_new(const uint8_t *data,
-                                                   size_t data_length) {
+                                                   size_t data_length,
+                                                   FdList *fd_list) {
   WaylandMessageDecoder *self = malloc(sizeof(WaylandMessageDecoder));
   ref_init(&self->ref);
   self->data = data;
   self->data_length = data_length;
   self->offset = 0;
+  self->fd_list = fd_list_ref(fd_list);
   self->error = false;
 
   self->id = wayland_message_decoder_read_uint(self);
@@ -43,6 +46,7 @@ wayland_message_decoder_ref(WaylandMessageDecoder *self) {
 
 void wayland_message_decoder_unref(WaylandMessageDecoder *self) {
   if (ref_dec(&self->ref)) {
+    fd_list_unref(self->fd_list);
     free(self);
   }
 }
@@ -108,8 +112,13 @@ uint32_t *wayland_message_decoder_read_array(WaylandMessageDecoder *self) {
 }
 
 Fd *wayland_message_decoder_read_fd(WaylandMessageDecoder *self) {
-  // FIXME: Implement fd support
-  return fd_new(-1);
+  Fd *fd = fd_list_pop(self->fd_list);
+  if (fd == NULL) {
+    self->error = true;
+    return fd_new(-1);
+  }
+
+  return fd;
 }
 
 bool wayland_message_decoder_finish(WaylandMessageDecoder *self) {
